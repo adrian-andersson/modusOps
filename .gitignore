@@ -1,3 +1,4 @@
 strap.ps1
 buildlocal.ps1
+coverage.xml
 /build
