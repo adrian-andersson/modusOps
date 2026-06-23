@@ -9,7 +9,7 @@ BeforeAll {
         if (-not $sourceMap.ContainsKey($_.Name)) { $sourceMap[$_.Name] = $_.FullName }
     }
 
-    # Get-AuthHeader is pure — it has no dependencies to load.
+    # Get-AuthHeader is pure - it has no dependencies to load.
     $dependencies = @()
     $dependencies.ForEach{
         if ($sourceMap.ContainsKey($_)) { . $sourceMap[$_] }
@@ -50,7 +50,7 @@ Describe 'Get-AuthHeader' {
         $decoded | Should -Be ':my-secret-pat'
     }
 
-    It 'ignores the username — only the PAT matters' {
+    It 'ignores the username - only the PAT matters' {
         $other = [pscredential]::new('someone-else', (ConvertTo-SecureString 'my-secret-pat' -AsPlainText -Force))
         (Get-AuthHeader -Credential $other).Authorization | Should -Be (Get-AuthHeader -Credential $cred).Authorization
     }

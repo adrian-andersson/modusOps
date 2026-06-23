@@ -41,7 +41,7 @@ Describe 'Add-MOAzureDevOpsModusBuildValidation' {
         Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
         Mock Get-AdoResource { [pscustomobject]@{ id = 'repo-1' } }
 
-        # Existing policy configurations (GET) — none yet.
+        # Existing policy configurations (GET) - none yet.
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match '/policy/configurations' -and $Method -ne 'Post' } -MockWith {
             [pscustomobject]@{ value = @() }
         }
@@ -56,7 +56,7 @@ Describe 'Add-MOAzureDevOpsModusBuildValidation' {
         Should -Invoke Invoke-AdoRest -Times 1 -ParameterFilter { $Uri -match '/policy/configurations' -and $Method -eq 'Post' }
     }
 
-    It 'is idempotent — skips when a matching policy already exists' {
+    It 'is idempotent - skips when a matching policy already exists' {
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match '/policy/configurations' -and $Method -ne 'Post' } -MockWith {
             [pscustomobject]@{ value = @(
                     [pscustomobject]@{
@@ -78,7 +78,7 @@ Describe 'Add-MOAzureDevOpsModusBuildValidation' {
             Should -Throw '*not found*'
     }
 
-    It 'honours -WhatIf — adds no policy' {
+    It 'honours -WhatIf - adds no policy' {
         Add-MOAzureDevOpsModusBuildValidation -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred -RepositoryName modusOpsTemplates -BuildDefinitionId 42 -WhatIf
         Should -Invoke Invoke-AdoRest -Times 0 -ParameterFilter { $Method -eq 'Post' }
     }

@@ -8,7 +8,7 @@ BeforeAll {
         if (-not $sourceMap.ContainsKey($_.Name)) { $sourceMap[$_.Name] = $_.FullName }
     }
 
-    # Push-MO…Content does not use Get-AdoResource — it talks to the seam directly.
+    # Push-MO...Content does not use Get-AdoResource - it talks to the seam directly.
     $dependencies = @(
         'Get-AuthHeader.ps1'
         'Invoke-AdoRest.ps1'
@@ -35,7 +35,7 @@ Describe 'Push-MOAzureDevOpsModusContent' {
         $cred = [pscredential]::new('pat', (ConvertTo-SecureString 'secret-pat' -AsPlainText -Force))
 
         # A real on-disk source folder (a simulation of bundled repo content). Using TestDrive keeps the
-        # file I/O genuine — no need to mock Get-ChildItem / Resolve-Path / Get-Content.
+        # file I/O genuine - no need to mock Get-ChildItem / Resolve-Path / Get-Content.
         $sourceDir = Join-Path $TestDrive 'content'
         New-Item -ItemType Directory -Path $sourceDir -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $sourceDir 'one.yml') -Value 'a: 1'
@@ -47,7 +47,7 @@ Describe 'Push-MOAzureDevOpsModusContent' {
         Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
         # Repo lookup (GET) + best-effort default-branch patch fall through to this.
         Mock Invoke-AdoRest { [pscustomobject]@{ id = 'repo-1' } }
-        # Refs (GET) — empty repo, so content is safe to push.
+        # Refs (GET) - empty repo, so content is safe to push.
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match '/refs\?' } -MockWith {
             [pscustomobject]@{ count = 0; value = @() }
         }
@@ -89,7 +89,7 @@ Describe 'Push-MOAzureDevOpsModusContent' {
             Should -Throw '*No files found*'
     }
 
-    It 'honours -WhatIf — performs no push' {
+    It 'honours -WhatIf - performs no push' {
         Push-MOAzureDevOpsModusContent -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred -RepositoryName modusOpsTemplates -SourcePath $sourceDir -WhatIf
         Should -Invoke Invoke-AdoRest -Times 0 -ParameterFilter { $Method -in 'Post', 'Patch' }
     }

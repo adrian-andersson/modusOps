@@ -5,7 +5,7 @@ function Add-MOAzureDevOpsModusBuildValidation
             Adds a build-validation branch policy on a repository branch, via the REST Policy API.
 
         .DESCRIPTION
-            Wires a pipeline (build definition) as a PR build-validation policy on a branch — e.g. the
+            Wires a pipeline (build definition) as a PR build-validation policy on a branch - e.g. the
             prValidation pipeline as a required check on `main`. Idempotent: skips if a build policy for
             the same definition already exists on that branch.
 
@@ -18,7 +18,7 @@ function Add-MOAzureDevOpsModusBuildValidation
 
         .NOTES
             Author: Adrian Andersson
-            PAT scope: Code (Read, write & manage) — policies are a Code-manage operation.
+            PAT scope: Code (Read, write & manage) - policies are a Code-manage operation.
             Build-policy type id is the well-known '0609b952-1397-4640-95ec-e00a01b2c241'.
     #>
 
@@ -28,7 +28,7 @@ function Add-MOAzureDevOpsModusBuildValidation
         [Parameter(Mandatory)]
         [string]$OrganizationUri,
 
-        #PAT credential — the PAT is the password (username is ignored)
+        #PAT credential - the PAT is the password (username is ignored)
         [Parameter(Mandatory)]
         [pscredential]$Credential,
 

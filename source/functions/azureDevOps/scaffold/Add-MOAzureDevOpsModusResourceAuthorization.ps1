@@ -3,12 +3,12 @@ function Add-MOAzureDevOpsModusResourceAuthorization
     <#
         .SYNOPSIS
             Authorizes a pipeline to use another repository as a resource, via the REST Pipeline
-            Permissions API — removing the first-run "this pipeline needs permission" prompt.
+            Permissions API - removing the first-run "this pipeline needs permission" prompt.
 
         .DESCRIPTION
             When a YAML pipeline references another repo (`resources.repositories`), Azure DevOps blocks
             the first run until the cross-repo access is authorized. This grants that authorization for a
-            specific pipeline (not all-pipelines — tighter). Idempotent: skips if already authorized.
+            specific pipeline (not all-pipelines - tighter). Idempotent: skips if already authorized.
 
         .EXAMPLE
             Add-MOAzureDevOpsModusResourceAuthorization -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat `
@@ -29,7 +29,7 @@ function Add-MOAzureDevOpsModusResourceAuthorization
         [Parameter(Mandatory)]
         [string]$OrganizationUri,
 
-        #PAT credential — the PAT is the password (username is ignored)
+        #PAT credential - the PAT is the password (username is ignored)
         [Parameter(Mandatory)]
         [pscredential]$Credential,
 

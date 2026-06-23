@@ -29,7 +29,7 @@ Describe 'Check Clean Environment' {
 
 Describe 'Invoke-AdoRest' {
     BeforeEach {
-        # The single seam to the network. Always mocked — a real call never happens in tests.
+        # The single seam to the network. Always mocked - a real call never happens in tests.
         Mock Invoke-RestMethod { 'mock-response' }
     }
 
@@ -59,7 +59,7 @@ Describe 'Invoke-AdoRest' {
 
     It 'serialises the body to JSON when one is supplied' {
         # Note: PowerShell variables are case-insensitive, so the expected value must NOT be named
-        # $body — that would collide with the mock's captured $Body (already a JSON string).
+        # $body - that would collide with the mock's captured $Body (already a JSON string).
         $payload  = @{ name = 'demo'; nested = @{ a = 1 } }
         $expected = $payload | ConvertTo-Json -Depth 20
         Invoke-AdoRest -Uri 'https://x' -Method 'Post' -Headers @{} -Body $payload

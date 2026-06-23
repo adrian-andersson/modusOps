@@ -40,7 +40,7 @@ Describe 'Add-MOAzureDevOpsModusResourceAuthorization' {
         # Both the project and the repository resolve to an id.
         Mock Get-AdoResource { [pscustomobject]@{ id = 'guid-1' } }
 
-        # Current permissions (GET) — pipeline not yet authorized.
+        # Current permissions (GET) - pipeline not yet authorized.
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match 'pipelinePermissions' -and $Method -ne 'Patch' } -MockWith {
             [pscustomobject]@{ pipelines = @() }
         }
@@ -55,7 +55,7 @@ Describe 'Add-MOAzureDevOpsModusResourceAuthorization' {
         Should -Invoke Invoke-AdoRest -Times 1 -ParameterFilter { $Uri -match 'pipelinePermissions' -and $Method -eq 'Patch' }
     }
 
-    It 'is idempotent — skips when the pipeline is already authorized' {
+    It 'is idempotent - skips when the pipeline is already authorized' {
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match 'pipelinePermissions' -and $Method -ne 'Patch' } -MockWith {
             [pscustomobject]@{ pipelines = @([pscustomobject]@{ id = 73; authorized = $true }) }
         }
@@ -75,7 +75,7 @@ Describe 'Add-MOAzureDevOpsModusResourceAuthorization' {
             Should -Throw '*Repository*not found*'
     }
 
-    It 'honours -WhatIf — authorizes nothing' {
+    It 'honours -WhatIf - authorizes nothing' {
         Add-MOAzureDevOpsModusResourceAuthorization -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred -RepositoryName modusOpsTemplates -PipelineId 73 -WhatIf
         Should -Invoke Invoke-AdoRest -Times 0 -ParameterFilter { $Method -eq 'Patch' }
     }

@@ -88,7 +88,7 @@ Describe 'New-MOAzureDevOpsModusEnvironment' {
         }
     }
 
-    Context 'idempotency — when everything already exists' {
+    Context 'idempotency - when everything already exists' {
         BeforeEach { Mock Get-AdoResource { @{ id = 'existing' } } }
 
         It 'makes no creating (POST) calls' {
@@ -98,7 +98,7 @@ Describe 'New-MOAzureDevOpsModusEnvironment' {
     }
 
     Context 'safety' {
-        It 'honours -WhatIf — performs no mutating calls' {
+        It 'honours -WhatIf - performs no mutating calls' {
             New-MOAzureDevOpsModusEnvironment -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred -WhatIf
             Should -Invoke Invoke-AdoRest -Times 0 -ParameterFilter { $Method -in 'Post', 'Patch' }
         }

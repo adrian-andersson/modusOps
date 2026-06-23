@@ -14,7 +14,7 @@ function Get-AuthHeader
     [CmdletBinding()]
     [OutputType([hashtable])]
     PARAM(
-        #PAT credential — the PAT is the password (username is ignored)
+        #PAT credential - the PAT is the password (username is ignored)
         [Parameter(Mandatory)]
         [pscredential]$Credential
     )

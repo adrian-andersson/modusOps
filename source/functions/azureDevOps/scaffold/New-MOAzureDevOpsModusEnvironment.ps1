@@ -2,8 +2,8 @@ function New-MOAzureDevOpsModusEnvironment
 {
     <#
         .SYNOPSIS
-            Scaffolds the modusOps control-plane in an Azure DevOps organisation — project, repositories,
-            and an Azure Artifacts feed — using only PowerShell and the Azure DevOps REST API.
+            Scaffolds the modusOps control-plane in an Azure DevOps organisation - project, repositories,
+            and an Azure Artifacts feed - using only PowerShell and the Azure DevOps REST API.
 
         .DESCRIPTION
             Idempotent "get-or-create": every resource is checked before it is created, so it can be
@@ -11,7 +11,7 @@ function New-MOAzureDevOpsModusEnvironment
             the username is ignored).
 
             Creates, in order:
-              1. the project (async — the operation is polled to completion)
+              1. the project (async - the operation is polled to completion)
               2. the requested git repositories
               3. the Azure Artifacts feed
               4. (best-effort) grants the project Build Service 'reader' on the feed
@@ -40,7 +40,7 @@ function New-MOAzureDevOpsModusEnvironment
         [Parameter(Mandatory)]
         [string]$OrganizationUri,
 
-        #PAT credential — the PAT is the password (username is ignored)
+        #PAT credential - the PAT is the password (username is ignored)
         [Parameter(Mandatory)]
         [pscredential]$Credential,
 
@@ -81,7 +81,7 @@ function New-MOAzureDevOpsModusEnvironment
             throw "Authentication/connectivity check failed against $org. Verify the org URI and PAT scopes. ($_)"
         }
 
-        #--- Project (async — poll the operation) ---
+        #--- Project (async - poll the operation) ---
         $projUri = "$coreApi/projects/$ProjectName`?api-version=$apiVer"
         $project = Get-AdoResource -Uri $projUri -Headers $headers
         if($project){

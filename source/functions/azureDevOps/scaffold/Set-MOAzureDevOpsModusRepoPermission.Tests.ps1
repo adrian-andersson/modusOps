@@ -40,7 +40,7 @@ Describe 'Set-MOAzureDevOpsModusRepoPermission' {
         # Both the project and the repository resolve to an id.
         Mock Get-AdoResource { [pscustomobject]@{ id = 'guid-1' } }
 
-        # Identity search (GET) — resolves the build-service identity.
+        # Identity search (GET) - resolves the build-service identity.
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match '/identities' } -MockWith {
             [pscustomobject]@{ value = @([pscustomobject]@{ descriptor = 'Microsoft.TeamFoundation.Identity;S-1-9-1' }) }
         }
@@ -73,7 +73,7 @@ Describe 'Set-MOAzureDevOpsModusRepoPermission' {
             Should -Throw '*Repository*not found*'
     }
 
-    It 'honours -WhatIf — grants nothing' {
+    It 'honours -WhatIf - grants nothing' {
         Set-MOAzureDevOpsModusRepoPermission -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred -RepositoryName modusOpsTemplates -WhatIf
         Should -Invoke Invoke-AdoRest -Times 0 -ParameterFilter { $Method -eq 'Post' }
     }

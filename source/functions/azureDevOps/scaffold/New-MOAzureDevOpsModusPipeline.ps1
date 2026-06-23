@@ -30,7 +30,7 @@ function New-MOAzureDevOpsModusPipeline
         [Parameter(Mandatory)]
         [string]$OrganizationUri,
 
-        #PAT credential — the PAT is the password (username is ignored)
+        #PAT credential - the PAT is the password (username is ignored)
         [Parameter(Mandatory)]
         [pscredential]$Credential,
 

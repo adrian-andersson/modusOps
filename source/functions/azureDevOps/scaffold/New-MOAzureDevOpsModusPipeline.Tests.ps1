@@ -40,7 +40,7 @@ Describe 'New-MOAzureDevOpsModusPipeline' {
         Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
         Mock Get-AdoResource { [pscustomobject]@{ id = 'repo-1' } }
 
-        # Pipeline list (GET) — none of that name exists yet.
+        # Pipeline list (GET) - none of that name exists yet.
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match '/pipelines\?' -and $Method -ne 'Post' } -MockWith {
             [pscustomobject]@{ value = @() }
         }
@@ -59,7 +59,7 @@ Describe 'New-MOAzureDevOpsModusPipeline' {
         (New-MOAzureDevOpsModusPipeline -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred -RepositoryName r -Name 'PR Validation' -YamlPath '/x.yml').id | Should -Be 99
     }
 
-    It 'is idempotent — returns the existing pipeline and creates nothing' {
+    It 'is idempotent - returns the existing pipeline and creates nothing' {
         Mock Invoke-AdoRest -ParameterFilter { $Uri -match '/pipelines\?' -and $Method -ne 'Post' } -MockWith {
             [pscustomobject]@{ value = @([pscustomobject]@{ id = 7; name = 'PR Validation' }) }
         }
@@ -74,7 +74,7 @@ Describe 'New-MOAzureDevOpsModusPipeline' {
             Should -Throw '*not found*'
     }
 
-    It 'honours -WhatIf — creates nothing' {
+    It 'honours -WhatIf - creates nothing' {
         New-MOAzureDevOpsModusPipeline -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred -RepositoryName r -Name 'New One' -YamlPath '/x.yml' -WhatIf
         Should -Invoke Invoke-AdoRest -Times 0 -ParameterFilter { $Method -eq 'Post' }
     }

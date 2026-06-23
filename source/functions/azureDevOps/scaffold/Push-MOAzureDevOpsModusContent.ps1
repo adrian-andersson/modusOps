@@ -11,7 +11,7 @@ function Push-MOAzureDevOpsModusContent
 
             Idempotent / safe: if the repo already has commits it is skipped, never clobbered.
 
-            Text files only (rawtext content); binary files would need base64 handling — not implemented.
+            Text files only (rawtext content); binary files would need base64 handling - not implemented.
 
             When -SourcePath is omitted it resolves to the module's bundled content for the repo:
             `<moduleRoot>/resource/repoContent/<RepositoryName>`.
@@ -37,7 +37,7 @@ function Push-MOAzureDevOpsModusContent
         [Parameter(Mandatory)]
         [string]$OrganizationUri,
 
-        #PAT credential — the PAT is the password (username is ignored)
+        #PAT credential - the PAT is the password (username is ignored)
         [Parameter(Mandatory)]
         [pscredential]$Credential,
 
@@ -98,7 +98,7 @@ function Push-MOAzureDevOpsModusContent
         }
         if(-not $files){ throw "No files found under '$source' (after excludes)." }
 
-        #Build the change set — rawtext content, repo-relative forward-slash paths
+        #Build the change set - rawtext content, repo-relative forward-slash paths
         $changes = @(foreach($f in $files){
             $rel = ($f.FullName.Substring($source.Length).TrimStart('\', '/')) -replace '\\', '/'
             $content = (Get-Content -LiteralPath $f.FullName -Raw) ?? ''
@@ -120,7 +120,7 @@ function Push-MOAzureDevOpsModusContent
             $null = Invoke-AdoRest -Uri "$repoBase/pushes?api-version=$apiVer" -Method Post -Body $body -Headers $headers
             Write-Verbose "Pushed $($changes.Count) file(s) to '$RepositoryName'."
 
-            #Pushing the first branch to an empty repo already makes it the default — this is belt-and-braces.
+            #Pushing the first branch to an empty repo already makes it the default - this is belt-and-braces.
             #Best-effort: never let setting the default branch abort a successful content push.
             $repoId = $repo.id
             try{

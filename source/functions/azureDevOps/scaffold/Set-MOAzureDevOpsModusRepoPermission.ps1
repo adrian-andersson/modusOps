@@ -3,14 +3,14 @@ function Set-MOAzureDevOpsModusRepoPermission
     <#
         .SYNOPSIS
             Grants an identity (default: the project Build Service) repository permissions via the
-            Security ACL API — so CI pipelines can push tags and post PR comments.
+            Security ACL API - so CI pipelines can push tags and post PR comments.
 
         .DESCRIPTION
             Resolves the project, repository, and identity, then sets an allow ACE on the Git
             Repositories security namespace for token `repoV2/{projectId}/{repoId}`. Uses `merge` so
             existing permissions are preserved; re-running is safe (sets the same allow bits).
 
-            Default allow bits — Contribute (4) + PullRequestContribute (16384) = 16388 — are exactly
+            Default allow bits - Contribute (4) + PullRequestContribute (16384) = 16388 - are exactly
             what `tagOnMerge` (push a tag) and `prValidation` (post a PR comment) need.
 
         .EXAMPLE
@@ -22,7 +22,7 @@ function Set-MOAzureDevOpsModusRepoPermission
 
         .NOTES
             Author: Adrian Andersson
-            PAT scope: Code (Read, write & manage) — managing permissions is a Code-manage operation.
+            PAT scope: Code (Read, write & manage) - managing permissions is a Code-manage operation.
             Git Repositories security namespace id: 2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87.
             Git permission bits: Contribute=4, PullRequestContribute=16384 (combined allow = 16388).
     #>
@@ -33,7 +33,7 @@ function Set-MOAzureDevOpsModusRepoPermission
         [Parameter(Mandatory)]
         [string]$OrganizationUri,
 
-        #PAT credential — the PAT is the password (username is ignored)
+        #PAT credential - the PAT is the password (username is ignored)
         [Parameter(Mandatory)]
         [pscredential]$Credential,
 
