@@ -3,7 +3,7 @@ function Push-MOAzureDevOpsModusContent
     <#
         .SYNOPSIS
             Pushes a folder of content into an Azure DevOps git repository as an initial commit, via the
-            REST Git Pushes API. Defaults to the content bundled in the module's resource folder.
+            REST Git Pushes API.
 
         .DESCRIPTION
             For an EMPTY repository, creates refs/heads/main with one commit containing every file under
@@ -13,14 +13,15 @@ function Push-MOAzureDevOpsModusContent
 
             Text files only (rawtext content); binary files would need base64 handling - not implemented.
 
-            When -SourcePath is omitted it resolves to the module's bundled content for the repo:
-            `<moduleRoot>/resource/repoContent/<RepositoryName>`.
+            A pure "seed an empty repo from a folder" primitive: the scaffold flow stages the operations
+            repo's content (templates vendored from the GitHub library via Add-MOTemplate, plus a starter
+            pipeline) into a working dir, then points -SourcePath at it.
 
         .EXAMPLE
-            Push-MOAzureDevOpsModusContent -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat -RepositoryName modusOpsTemplates -Verbose
+            Push-MOAzureDevOpsModusContent -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat -RepositoryName modusOps -SourcePath $staging -Verbose
 
             #### DESCRIPTION
-            Pushes the bundled content for 'modusOpsTemplates' into the (empty) repo.
+            Seeds the (empty) 'modusOps' operations repo with the staged content under $staging.
 
             #### OUTPUT
             A summary object with the repository, file count, and branch.
@@ -45,7 +46,8 @@ function Push-MOAzureDevOpsModusContent
         [Parameter(Mandatory)]
         [string]$RepositoryName,
 
-        #Folder to push. Defaults to the module's bundled resource for this repo
+        #Folder whose contents are pushed as the initial commit (recursive, relative paths preserved)
+        [Parameter(Mandatory)]
         [string]$SourcePath,
 
         #Project that owns the repository
@@ -63,17 +65,6 @@ function Push-MOAzureDevOpsModusContent
         #Return the sent variables when running debug
         Write-Debug "BoundParams: $($MyInvocation.BoundParameters|Out-String)"
         $ErrorActionPreference = 'Stop'
-
-        if(-not $SourcePath){
-            #Resolve bundled resource. $PSScriptRoot is the module root in a built module.
-            if($mockPsScriptRoot){
-                write-warning 'Assuming PSScriptRoot from $mockPsScriptRoot. This should only be done for testing'
-                $resourceFolder = Join-Path $mockPsScriptRoot 'resource'
-            }else{
-                $resourceFolder = Join-Path $PSScriptRoot 'resource'
-            }
-            $SourcePath = Join-Path $resourceFolder (Join-Path 'repoContent' $RepositoryName)
-        }
         Write-Verbose "SourcePath: $SourcePath"
     }
     process{
