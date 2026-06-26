@@ -8,8 +8,8 @@ function Invoke-GitHubRest
             Sends a JSON request to a GitHub REST endpoint (api.github.com). Sets the GitHub API
             version + Accept headers, and a Bearer token when one is supplied. The body, when present,
             is converted to JSON. Errors are terminating. This is the single HTTP seam for the
-            template-library (GitHub Releases) functions — the counterpart to Invoke-AdoRest on the
-            Azure DevOps side — so tests mock here, never the network.
+            template-library (GitHub Releases) functions - the counterpart to Invoke-AdoRest on the
+            Azure DevOps side - so tests mock here, never the network.
 
         .NOTES
             Author: Adrian Andersson

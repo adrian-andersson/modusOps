@@ -17,7 +17,7 @@ function Add-MOTemplate
                                    pinned in the lockfile).
 
             The vendored file is committed and reviewed in the consumer's own PR; nothing is fetched at
-            pipeline compile- or run-time. Always pin a version in practice — omitting -Version takes the
+            pipeline compile- or run-time. Always pin a version in practice - omitting -Version takes the
             latest release, which is recorded explicitly in the lockfile (never a blind "latest").
 
         .EXAMPLE

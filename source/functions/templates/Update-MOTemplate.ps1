@@ -10,7 +10,7 @@ function Update-MOTemplate
               - hash changed  -> overwrites the local file and updates the lockfile (Status 'Changed')
               - hash unchanged -> leaves the file untouched, only re-pins the version (Status 'Unchanged')
             So the version coordinate always advances but the working-tree diff shows only real changes.
-            Vendored files are a managed directory (node_modules model) — local edits are not preserved.
+            Vendored files are a managed directory (node_modules model) - local edits are not preserved.
 
         .EXAMPLE
             Update-MOTemplate -Version v0.2.0

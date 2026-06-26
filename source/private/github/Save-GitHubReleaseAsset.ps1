@@ -6,7 +6,7 @@ function Save-GitHubReleaseAsset
 
         .DESCRIPTION
             The download seam for the template-library functions. Writes the asset bytes exactly as
-            served (vendor-at-fetch) so the local file's SHA256 matches the published asset — the value
+            served (vendor-at-fetch) so the local file's SHA256 matches the published asset - the value
             pinned in .modusops.lock. Kept as its own private function so tests mock here instead of
             hitting the network; a mock typically drops known content at -Path under a Pester TestDrive.
 

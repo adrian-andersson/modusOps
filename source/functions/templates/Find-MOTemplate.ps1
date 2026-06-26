@@ -7,7 +7,7 @@ function Find-MOTemplate
         .DESCRIPTION
             Resolves a release of the template library (latest, or -Version) and reads its manifest.json,
             emitting one object per template (name, description, platforms, version, asset). Optionally
-            filter by -Name (wildcards) and/or -Platform. Read-only discovery — nothing is written
+            filter by -Name (wildcards) and/or -Platform. Read-only discovery - nothing is written
             locally; use Add-MOTemplate to vendor one.
 
         .EXAMPLE
