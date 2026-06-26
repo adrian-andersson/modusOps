@@ -1,6 +1,0 @@
-strap.ps1
-buildlocal.ps1
-coverage.xml
-/build
-# Pester per-test scratch dirs (repo-local temp; created/cleaned by template tests)
-.pestertmp_*
