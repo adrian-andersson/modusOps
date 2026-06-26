@@ -11,6 +11,7 @@ BeforeAll {
     $dependencies = @(
         'Invoke-GitHubRest.ps1'
         'Save-GitHubReleaseAsset.ps1'
+        'Resolve-MOTemplateAsset.ps1'
         'Get-MOTemplateRelease.ps1'
         'Get-MOTemplateManifest.ps1'
         'Read-MOTemplateLock.ps1'
@@ -112,5 +113,71 @@ Describe 'Update-MOTemplate' {
         Should -Invoke Save-GitHubReleaseAsset -Times 0
         $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
         $lock.templates.alpha.version | Should -Be 'v0.1.0'
+    }
+}
+
+Describe 'Update-MOTemplate (gh composite action)' {
+    BeforeEach {
+        $tmp = Join-Path $testTempBase ([guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+        $script:tmp = $tmp
+
+        Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
+        Mock Invoke-WebRequest { throw 'No real HTTP in tests' }
+
+        # Seed a vendored gh action at v0.1.0 (templates/beta/action.yml) and pin its real hash.
+        $script:originalAction = "name: 'beta'`nruns:`n  using: composite  # original"
+        $betaDir = Join-Path $tmp 'templates/beta'
+        New-Item -ItemType Directory -Path $betaDir -Force | Out-Null
+        $betaPath = Join-Path $betaDir 'action.yml'
+        Set-Content -LiteralPath $betaPath -Value $script:originalAction -NoNewline
+        $betaSha = (Get-FileHash -LiteralPath $betaPath -Algorithm SHA256).Hash
+
+        $lockPath = Join-Path $tmp '.modusops.lock'
+        @{
+            lockfileVersion = 1
+            source          = 'https://github.com/o/r'
+            templates       = @{ beta = @{ version = 'v0.1.0'; platform = 'gh'; asset = 'gh.beta.zip'; path = 'templates/beta/action.yml'; sha256 = $betaSha; url = 'https://example/old.zip' } }
+        } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $lockPath
+
+        Mock Get-MOTemplateRelease {
+            [pscustomobject]@{ tag_name = 'v0.2.0'; assets = @(
+                [pscustomobject]@{ name = 'gh.beta.zip'; browser_download_url = 'https://example/v0.2.0/gh.beta.zip' }
+            )}
+        }
+        Mock Get-MOTemplateManifest {
+            @{ templates = @{ beta = @{ platforms = @('gh'); assets = @{ gh = 'gh.beta.zip' } } } } | ConvertTo-Json -Depth 6 | ConvertFrom-Json
+        }
+        # Default: the new release serves an identical action.yml (unchanged).
+        $script:newAction = $script:originalAction
+        Mock Save-GitHubReleaseAsset {
+            $src = Join-Path $script:tmp ('src' + [guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Path $src -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $src 'action.yml') -Value $script:newAction -NoNewline
+            Compress-Archive -Path (Join-Path $src '*') -DestinationPath $Path -Force
+        }
+    }
+    AfterEach {
+        if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'reports Unchanged when the expanded action.yml is identical' {
+        $result = @(Update-MOTemplate -ProjectPath $tmp)
+        $result[0].Status | Should -Be 'Unchanged'
+        $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
+        $lock.templates.beta.version | Should -Be 'v0.2.0'
+    }
+
+    It 'overwrites action.yml and updates the hash when the action changed' {
+        $script:newAction = "name: 'beta'`nruns:`n  using: composite  # UPDATED"
+        $result = @(Update-MOTemplate -ProjectPath $tmp)
+        $result[0].Status | Should -Be 'Changed'
+
+        $betaPath = Join-Path $tmp 'templates/beta/action.yml'
+        (Get-Content $betaPath -Raw) | Should -Match 'UPDATED'
+        $newSha = (Get-FileHash -LiteralPath $betaPath -Algorithm SHA256).Hash
+        $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
+        $lock.templates.beta.sha256 | Should -Be $newSha
+        $lock.templates.beta.version | Should -Be 'v0.2.0'
     }
 }

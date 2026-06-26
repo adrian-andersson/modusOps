@@ -12,6 +12,7 @@ BeforeAll {
     $dependencies = @(
         'Invoke-GitHubRest.ps1'
         'Save-GitHubReleaseAsset.ps1'
+        'Resolve-MOTemplateAsset.ps1'
         'Get-MOTemplateRelease.ps1'
         'Get-MOTemplateManifest.ps1'
         'Read-MOTemplateLock.ps1'
@@ -109,5 +110,63 @@ Describe 'Add-MOTemplate' {
         Add-MOTemplate -Name registerModusOpsFeeds -ProjectPath $tmp -WhatIf
         Should -Invoke Save-GitHubReleaseAsset -Times 0
         (Test-Path (Join-Path $tmp '.modusops.lock')) | Should -BeFalse
+    }
+}
+
+Describe 'Add-MOTemplate (gh composite action)' {
+    BeforeEach {
+        $tmp = Join-Path $testTempBase ([guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+        $script:tmp = $tmp
+
+        Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
+        Mock Invoke-WebRequest { throw 'No real HTTP in tests' }
+
+        Mock Get-MOTemplateRelease {
+            [pscustomobject]@{
+                tag_name = 'v0.1.0'
+                assets   = @(
+                    [pscustomobject]@{ name = 'gh.registerModusOpsFeeds.zip'; browser_download_url = 'https://example/gh.registerModusOpsFeeds.zip' }
+                    [pscustomobject]@{ name = 'manifest.json'; browser_download_url = 'https://example/manifest.json' }
+                )
+            }
+        }
+        Mock Get-MOTemplateManifest {
+            @{
+                templates = @{ registerModusOpsFeeds = @{ platforms = @('gh'); assets = @{ gh = 'gh.registerModusOpsFeeds.zip' } } }
+            } | ConvertTo-Json -Depth 6 | ConvertFrom-Json
+        }
+        $script:actionContent = "name: 'Register'`nruns:`n  using: composite"
+        # Simulate the zip download by building a real archive containing action.yml.
+        Mock Save-GitHubReleaseAsset {
+            $src = Join-Path $script:tmp ('src' + [guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Path $src -Force | Out-Null
+            Set-Content -LiteralPath (Join-Path $src 'action.yml') -Value $script:actionContent -NoNewline
+            Compress-Archive -Path (Join-Path $src '*') -DestinationPath $Path -Force
+        }
+    }
+    AfterEach {
+        if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'vendors the gh template as <name>/action.yml' {
+        Add-MOTemplate -Name registerModusOpsFeeds -Platform gh -ProjectPath $tmp
+        $actionPath = Join-Path $tmp 'templates/registerModusOpsFeeds/action.yml'
+        (Test-Path $actionPath) | Should -BeTrue
+        (Get-Content $actionPath -Raw) | Should -Match 'using: composite'
+    }
+
+    It 'records the action.yml path + zip asset + sha in the lockfile' {
+        Add-MOTemplate -Name registerModusOpsFeeds -Platform gh -ProjectPath $tmp
+        $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
+        $entry = $lock.templates.registerModusOpsFeeds
+        $entry.platform | Should -Be 'gh'
+        $entry.asset    | Should -Be 'gh.registerModusOpsFeeds.zip'
+        $entry.path     | Should -Be 'templates/registerModusOpsFeeds/action.yml'
+        $entry.sha256   | Should -Match '^[0-9A-F]{64}$'
+
+        # The pinned hash is the SHA256 of the laid-down action.yml (Test-MOTemplate verifies against this).
+        $actual = (Get-FileHash -LiteralPath (Join-Path $tmp $entry.path) -Algorithm SHA256).Hash
+        $entry.sha256 | Should -Be $actual
     }
 }

@@ -77,23 +77,26 @@ function Update-MOTemplate
                 continue
             }
 
-            #Download to a temp file and compare before overwriting
-            $temp = Join-Path ([System.IO.Path]::GetTempPath()) "modusops-$key-$([guid]::NewGuid()).yml"
+            #Download (and expand, for gh archives) into a staging area and compare before overwriting
+            $staged = Resolve-MOTemplateAsset -Uri $asset.browser_download_url -AssetName $assetName @tokenSplat
             try{
-                Save-GitHubReleaseAsset -Uri $asset.browser_download_url -Path $temp @tokenSplat
-                $newSha = (Get-FileHash -LiteralPath $temp -Algorithm SHA256).Hash
+                $newSha = $staged.Sha256
 
                 if($newSha -eq $entry.sha256){
                     $status = 'Unchanged'
                 }else{
                     $dir = Split-Path -Parent $localPath
                     if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-                    Copy-Item -LiteralPath $temp -Destination $localPath -Force
+                    if($staged.IsArchive){
+                        Copy-Item -Path (Join-Path $staged.ContentPath '*') -Destination $dir -Recurse -Force
+                    }else{
+                        Copy-Item -LiteralPath $staged.ContentPath -Destination $localPath -Force
+                    }
                     $status = 'Changed'
                 }
             }
             finally{
-                if(Test-Path -LiteralPath $temp){ Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
+                if(Test-Path -LiteralPath $staged.StageRoot){ Remove-Item -LiteralPath $staged.StageRoot -Recurse -Force -ErrorAction SilentlyContinue }
             }
 
             $fromVersion = $entry.version

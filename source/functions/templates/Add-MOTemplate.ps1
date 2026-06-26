@@ -6,9 +6,15 @@ function Add-MOTemplate
 
         .DESCRIPTION
             The authoring-time "install" verb (npm-install for templates). Resolves the named template
-            in a GitHub release of the template library, downloads its YAML asset, writes it as a local
-            file under -Path (vendor-at-fetch), records source URL + version + asset + SHA256 in the
-            consumer's .modusops.lock, and returns the lock entry.
+            in a GitHub release of the template library, downloads its asset, writes it locally under
+            -Path (vendor-at-fetch), records source URL + version + asset + SHA256 in the consumer's
+            .modusops.lock, and returns the lock entry.
+
+            Vendored shape follows the asset shape:
+              azd (.yml asset)  -> a single file  templates/<name>.yml
+              gh  (.zip asset)  -> a composite-action directory  templates/<name>/action.yml (the zip is
+                                   expanded; the inner action.yml is the file `uses:` resolves and the hash
+                                   pinned in the lockfile).
 
             The vendored file is committed and reviewed in the consumer's own PR; nothing is fetched at
             pipeline compile- or run-time. Always pin a version in practice — omitting -Version takes the
@@ -79,24 +85,44 @@ function Add-MOTemplate
         $asset = @($release.assets) | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
         if(-not $asset){ throw "Release '$($release.tag_name)' is missing asset '$assetName'." }
 
-        #Resolve local paths
-        $projectRoot = (Resolve-Path -LiteralPath $ProjectPath).Path
+        #Resolve local paths. Asset extension drives the vendored layout: .zip (gh composite action) lands
+        #in a directory <name>/action.yml; everything else is a single file <name>.yml.
+        $projectRoot  = (Resolve-Path -LiteralPath $ProjectPath).Path
         $templatesDir = Join-Path $projectRoot $Path
-        $localName    = "$Name.yml"                     # drop the platform prefix once vendored
-        $localPath    = Join-Path $templatesDir $localName
-        $relativePath = (Join-Path $Path $localName) -replace '\\','/'
+        $isArchive    = $assetName -like '*.zip'
+        if($isArchive){
+            $localPath    = Join-Path (Join-Path $templatesDir $Name) 'action.yml'
+            $relativePath = (Join-Path (Join-Path $Path $Name) 'action.yml') -replace '\\','/'
+        }else{
+            $localName    = "$Name.yml"                 # drop the platform prefix once vendored
+            $localPath    = Join-Path $templatesDir $localName
+            $relativePath = (Join-Path $Path $localName) -replace '\\','/'
+        }
         $lockPath     = Join-Path $projectRoot $LockFile
 
         if(-not $PSCmdlet.ShouldProcess($localPath, "Vendor template '$Name' from $($release.tag_name)")){
             return
         }
 
-        if(-not (Test-Path -LiteralPath $templatesDir)){
-            New-Item -ItemType Directory -Path $templatesDir -Force | Out-Null
+        $destDir = Split-Path -Parent $localPath
+        if(-not (Test-Path -LiteralPath $destDir)){
+            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
         }
 
-        Save-GitHubReleaseAsset -Uri $asset.browser_download_url -Path $localPath @tokenSplat
-        $sha = (Get-FileHash -LiteralPath $localPath -Algorithm SHA256).Hash
+        #Download (and expand, for archives) into a staging area, then lay the files down.
+        $staged = Resolve-MOTemplateAsset -Uri $asset.browser_download_url -AssetName $assetName @tokenSplat
+        try{
+            if($staged.IsArchive){
+                #Copy the whole expanded action dir (action.yml + any sidecars) into <name>/.
+                Copy-Item -Path (Join-Path $staged.ContentPath '*') -Destination $destDir -Recurse -Force
+            }else{
+                Copy-Item -LiteralPath $staged.ContentPath -Destination $localPath -Force
+            }
+            $sha = $staged.Sha256
+        }
+        finally{
+            if(Test-Path -LiteralPath $staged.StageRoot){ Remove-Item -LiteralPath $staged.StageRoot -Recurse -Force -ErrorAction SilentlyContinue }
+        }
         Write-Verbose "Vendored '$Name' -> $relativePath (sha256 $sha)"
 
         #Record in the lockfile
