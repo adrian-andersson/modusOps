@@ -10,6 +10,10 @@ function Find-MOTemplate
             filter by -Name (wildcards) and/or -Platform. Read-only discovery - nothing is written
             locally; use Add-MOTemplate to vendor one.
 
+            The Asset field reflects the view: with -Platform it is that platform's single asset; without
+            it, the full per-platform asset map (so a dual-platform template shows both azd and gh, not
+            just the first one).
+
         .EXAMPLE
             Find-MOTemplate
 
@@ -64,7 +68,7 @@ function Find-MOTemplate
                 Description = $prop.Value.description
                 Platforms   = $platforms
                 Version     = $release.tag_name
-                Asset       = if($Platform){ $prop.Value.assets.$Platform } else { $prop.Value.assets.$($platforms[0]) }
+                Asset       = if($Platform){ $prop.Value.assets.$Platform } else { $prop.Value.assets }
             }
         }
     }

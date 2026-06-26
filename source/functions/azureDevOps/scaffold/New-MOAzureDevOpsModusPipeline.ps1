@@ -9,7 +9,7 @@ function New-MOAzureDevOpsModusPipeline
             The created pipeline adopts whatever `trigger:` the referenced YAML declares.
 
         .EXAMPLE
-            New-MOAzureDevOpsModusPipeline -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat `
+            New-MOAzureDevOpsModusPipeline -OrganizationUri 'https://dev.azure.com/myorg' -Credential $pat `
                 -RepositoryName modusOpsTemplates -Name 'modusOpsTemplates Tag On Merge' -YamlPath '/ci/tagOnMerge.yml' -Verbose
 
             #### DESCRIPTION

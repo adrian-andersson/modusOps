@@ -14,11 +14,11 @@ function Set-MOAzureDevOpsModusRepoPermission
             what `tagOnMerge` (push a tag) and `prValidation` (post a PR comment) need.
 
         .EXAMPLE
-            Set-MOAzureDevOpsModusRepoPermission -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat `
+            Set-MOAzureDevOpsModusRepoPermission -OrganizationUri 'https://dev.azure.com/myorg' -Credential $pat `
                 -RepositoryName modusOpsTemplates -Verbose
 
             #### DESCRIPTION
-            Grants 'modusOps Build Service (anderss)' Contribute + Contribute-to-PRs on the repo.
+            Grants 'modusOps Build Service (myorg)' Contribute + Contribute-to-PRs on the repo.
 
         .NOTES
             Author: Adrian Andersson
