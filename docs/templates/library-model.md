@@ -1,0 +1,69 @@
+---
+layout: default
+title: The library model
+parent: Templates
+nav_order: 1
+---
+
+# The library model - vendor-at-fetch
+
+[`modusops-templates`](https://github.com/adrian-andersson/modusops-templates) is a **source, not a
+live dependency**. The tooling pulls a template from a GitHub Release and writes it into your repo as
+a committed, pinned file. Think npm, but the package is vendored and reviewed in your own PR.
+
+| npm | modusOps templates |
+| --- | --- |
+| registry | `modusops-templates` releases |
+| `npm install <pkg>` | `Add-MOTemplate` |
+| `npm update` | `Update-MOTemplate` |
+| `package-lock.json` | `.modusops.lock` |
+| `npm ci` integrity check | `Test-MOTemplate` (offline) |
+| editing `node_modules` (don't) | editing a vendored template (managed; reported as drift) |
+
+## Why releases, not a package feed
+
+YAML has no package ecosystem, and PSResourceGet is module/script-centric - you cannot cleanly put raw
+YAML in a NuGet feed and pull it without wrapping it as a module, which would conflate module-install
+with template-fetch and lose the vendored-file + lockfile-SHA + PR-review properties. GitHub Release
+assets + vendor-at-fetch keeps all three.
+
+## The lockfile is the trust anchor
+
+`.modusops.lock` records, per template: the source URL, the version/tag, the asset name, and a SHA256.
+That hash - not the release tag - is the integrity anchor, because release assets are mutable.
+
+```jsonc
+{
+  "lockfileVersion": 1,
+  "source": "https://github.com/adrian-andersson/modusops-templates",
+  "templates": {
+    "registerModusOpsFeeds": {
+      "version": "v0.1.1",
+      "platform": "gh",
+      "asset": "gh.registerModusOpsFeeds.zip",
+      "path": "templates/registerModusOpsFeeds/action.yml",
+      "sha256": "....",
+      "url": "https://github.com/.../gh.registerModusOpsFeeds.zip"
+    }
+  }
+}
+```
+
+`Test-MOTemplate` recomputes each vendored file's hash and compares it to the lock - entirely offline,
+so it is a cheap CI gate.
+
+## The verbs
+
+| Verb | Does |
+| --- | --- |
+| `Find-MOTemplate` | Discover templates / versions in a release. |
+| `Add-MOTemplate` | Vendor a pinned template + record it in the lockfile (always pin; never blind "latest"). |
+| `Update-MOTemplate` | Re-pull at a newer version, rewriting only files whose bytes changed. |
+| `Test-MOTemplate` | Offline integrity check against the lockfile. |
+| `Get-MOTemplate` | List installed templates (reads the lockfile). |
+
+## Configurable source
+
+The library defaults to the public repo but accepts an override URL, so an enterprise can vendor from
+an internal mirror it controls - the same code path, no public fetch. See
+[The security-prominent stance](../concepts/security-model.md).

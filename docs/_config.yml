@@ -1,0 +1,38 @@
+remote_theme: just-the-docs/just-the-docs
+
+plugins:
+  - jekyll-seo-tag
+
+title: modusOps
+description: Versioned, security-prominent pipeline automation for Azure DevOps and GitHub Actions
+
+# IMPORTANT: must match the repository name exactly for a project site, or the theme's
+# CSS and internal links will 404. Repo is github.com/adrian-andersson/modusOps.
+baseurl: "/modusOps"
+
+color_scheme: dark
+
+aux_links:
+  "GitHub":
+    - "https://github.com/adrian-andersson/modusOps"
+  "PSGallery":
+    - "https://www.powershellgallery.com/packages/modusOps"
+  "Templates":
+    - "https://github.com/adrian-andersson/modusops-templates"
+  "Built with ModuleForge":
+    - "https://adrian-andersson.github.io/ModuleForge"
+aux_links_new_tab: true
+
+footer_content: "Copyright &copy; 2026 Adrian Andersson. Distributed under the <a href=\"https://github.com/adrian-andersson/modusOps/blob/main/LICENSE\">MIT License</a>. Built with <a href=\"https://adrian-andersson.github.io/ModuleForge\">ModuleForge</a>."
+
+back_to_top: true
+back_to_top_text: "Back to top"
+
+mermaid:
+  version: "11"
+
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/adrian-andersson/modusOps"
+gh_edit_branch: "docs"
+gh_edit_view_mode: "edit"
