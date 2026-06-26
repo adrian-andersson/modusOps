@@ -50,8 +50,10 @@ function New-MOAzureDevOpsModusEnvironment
         #Azure Artifacts feed to create / use
         [string]$FeedName = 'modusOps',
 
-        #Repositories to create in the project
-        [string[]]$Repository = @('modusOpsTemplates', 'modusOpsHelpers', 'modusOps'),
+        #Repositories to create in the project. Default: the operations repo only - templates are
+        #vendored from the GitHub library (Add-MOTemplate), not provisioned as an AZD repo, and the
+        #Toolkit/business modules are consumed from the feed.
+        [string[]]$Repository = @('modusOps'),
 
         #Process template for a new project
         [string]$ProcessName = 'Basic'

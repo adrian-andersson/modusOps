@@ -74,6 +74,12 @@ Describe 'New-MOAzureDevOpsModusEnvironment' {
             Should -Invoke Invoke-AdoRest -Times 2 -ParameterFilter { $Uri -match '/git/repositories\?' -and $Method -eq 'Post' }
         }
 
+        It 'defaults to the operations repo only (templates come from the GitHub library)' {
+            New-MOAzureDevOpsModusEnvironment -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred
+            Should -Invoke Invoke-AdoRest -Times 1 -ParameterFilter { $Uri -match '/git/repositories\?' -and $Method -eq 'Post' }
+            Should -Invoke Invoke-AdoRest -Times 1 -ParameterFilter { $Uri -match '/git/repositories\?' -and $Method -eq 'Post' -and ($Body | ConvertTo-Json) -match 'modusOps' }
+        }
+
         It 'creates the feed' {
             New-MOAzureDevOpsModusEnvironment -OrganizationUri 'https://dev.azure.com/contoso' -Credential $cred
             Should -Invoke Invoke-AdoRest -Times 1 -ParameterFilter { $Uri -match '/packaging/feeds\?' -and $Method -eq 'Post' }
