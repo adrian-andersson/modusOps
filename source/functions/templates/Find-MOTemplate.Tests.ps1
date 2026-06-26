@@ -32,9 +32,9 @@ Describe 'Find-MOTemplate' {
         Mock Get-MOTemplateManifest {
             @{
                 templates = @{
-                    registerModusOpsFeeds = @{ description = 'feeds'; platforms = @('azd'); assets = @{ azd = 'azd.registerModusOpsFeeds.yml' } }
+                    registerModusOpsFeeds = @{ description = 'feeds'; platforms = @('azd','gh'); assets = @{ azd = 'azd.registerModusOpsFeeds.yml'; gh = 'gh.registerModusOpsFeeds.zip' } }
                     sendTeamsChannelMessage = @{ description = 'teams'; platforms = @('azd'); assets = @{ azd = 'azd.sendTeamsChannelMessage.yml' } }
-                    futureGhThing = @{ description = 'gh only'; platforms = @('gh'); assets = @{ gh = 'gh.futureGhThing.yml' } }
+                    futureGhThing = @{ description = 'gh only'; platforms = @('gh'); assets = @{ gh = 'gh.futureGhThing.zip' } }
                 }
             } | ConvertTo-Json -Depth 6 | ConvertFrom-Json
         }
@@ -61,5 +61,16 @@ Describe 'Find-MOTemplate' {
     It 'passes -Version through to the release resolver' {
         Find-MOTemplate -Version v0.1.0 | Out-Null
         Should -Invoke Get-MOTemplateRelease -Times 1 -ParameterFilter { $Version -eq 'v0.1.0' }
+    }
+
+    It 'shows the full asset map (both platforms) when no -Platform filter is given' {
+        $entry = @(Find-MOTemplate -Name registerModusOpsFeeds)[0]
+        $entry.Asset.azd | Should -Be 'azd.registerModusOpsFeeds.yml'
+        $entry.Asset.gh  | Should -Be 'gh.registerModusOpsFeeds.zip'
+    }
+
+    It 'shows the single platform asset when -Platform is given' {
+        $entry = @(Find-MOTemplate -Name registerModusOpsFeeds -Platform gh)[0]
+        $entry.Asset | Should -Be 'gh.registerModusOpsFeeds.zip'
     }
 }

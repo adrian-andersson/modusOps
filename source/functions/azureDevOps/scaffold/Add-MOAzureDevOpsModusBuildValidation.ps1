@@ -10,7 +10,7 @@ function Add-MOAzureDevOpsModusBuildValidation
             the same definition already exists on that branch.
 
         .EXAMPLE
-            Add-MOAzureDevOpsModusBuildValidation -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat `
+            Add-MOAzureDevOpsModusBuildValidation -OrganizationUri 'https://dev.azure.com/myorg' -Credential $pat `
                 -RepositoryName modusOpsTemplates -BuildDefinitionId 42 -DisplayName 'PR Validation' -Verbose
 
             #### DESCRIPTION

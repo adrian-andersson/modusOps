@@ -11,7 +11,7 @@ function Add-MOAzureDevOpsModusResourceAuthorization
             specific pipeline (not all-pipelines - tighter). Idempotent: skips if already authorized.
 
         .EXAMPLE
-            Add-MOAzureDevOpsModusResourceAuthorization -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat `
+            Add-MOAzureDevOpsModusResourceAuthorization -OrganizationUri 'https://dev.azure.com/myorg' -Credential $pat `
                 -RepositoryName modusOpsTemplates -PipelineId 73 -Verbose
 
             #### DESCRIPTION

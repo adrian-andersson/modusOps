@@ -18,7 +18,7 @@ function Push-MOAzureDevOpsModusContent
             pipeline) into a working dir, then points -SourcePath at it.
 
         .EXAMPLE
-            Push-MOAzureDevOpsModusContent -OrganizationUri 'https://dev.azure.com/anderss' -Credential $pat -RepositoryName modusOps -SourcePath $staging -Verbose
+            Push-MOAzureDevOpsModusContent -OrganizationUri 'https://dev.azure.com/myorg' -Credential $pat -RepositoryName modusOps -SourcePath $staging -Verbose
 
             #### DESCRIPTION
             Seeds the (empty) 'modusOps' operations repo with the staged content under $staging.

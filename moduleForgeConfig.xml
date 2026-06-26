@@ -19,9 +19,25 @@
         </LST>
       </Obj>
       <S N="companyName"></S>
-      <Nil N="tags" />
+      <Obj N="tags" RefId="2">
+        <TNRef RefId="1" />
+        <LST>
+          <S>PowerShell</S>
+          <S>AzureDevOps</S>
+          <S>GitHubActions</S>
+          <S>DevOps</S>
+          <S>Automation</S>
+          <S>CICD</S>
+          <S>Pipelines</S>
+          <S>PSResourceGet</S>
+          <S>SecretManagement</S>
+          <S>SupplyChainSecurity</S>
+          <S>ModuleForge</S>
+          <S>modusOps</S>
+        </LST>
+      </Obj>
       <S N="projectUri">https://github.com/adrian-andersson/modusOps</S>
-      <S N="licenseUri"></S>
+      <S N="licenseUri">https://github.com/adrian-andersson/modusOps/blob/main/LICENSE</S>
       <S N="guid">0970511a-fc92-4661-8214-09c8f1ef92b6</S>
       <S N="moduleforgeVersion">1.3.0</S>
       <S N="iconUri"></S>
