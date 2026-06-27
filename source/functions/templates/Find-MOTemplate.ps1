@@ -36,9 +36,19 @@ function Find-MOTemplate
         [string]$Name = '*',
         #Release tag to inspect, e.g. v0.1.0. Omit for the latest release.
         [string]$Version,
-        #Filter to templates that ship the given platform asset
+        #Filter to templates that ship the given platform asset. Omit to default to the repo's platform
+        #(lockfile default / auto-detect) so the catalog shows only what's relevant; pass -AllPlatforms to override.
         [ValidateSet('azd','gh')]
         [string]$Platform,
+        #Show every platform's templates instead of defaulting to the repo's resolved platform
+        [switch]$AllPlatforms,
+        #Filter to a category: pipeline (compose into a pipeline) or repoScaffold (repo furniture)
+        [ValidateSet('pipeline','repoScaffold')]
+        [string]$Category,
+        #Consumer repo root (used to resolve the default platform when -Platform is omitted)
+        [string]$ProjectPath = '.',
+        #Lockfile name (relative to ProjectPath)
+        [string]$LockFile = '.modusops.lock',
         #Template library GitHub repo URL (override for an internal mirror/fork)
         [string]$Source = 'https://github.com/adrian-andersson/modusops-templates',
         #Optional GitHub token
@@ -53,6 +63,17 @@ function Find-MOTemplate
         $tokenSplat = @{}
         if($Token){ $tokenSplat.Token = $Token }
 
+        #Effective platform filter: explicit -Platform wins; -AllPlatforms shows everything; otherwise
+        #default to the repo's resolved platform (non-throwing - if it can't be determined, show all).
+        $effPlatform = if($Platform){
+            $Platform
+        }elseif($AllPlatforms){
+            $null
+        }else{
+            try{ Resolve-MOPlatform -ProjectPath $ProjectPath -LockFile $LockFile }catch{ $null }
+        }
+        if($effPlatform){ Write-Verbose "Filtering catalog to platform '$effPlatform' (pass -AllPlatforms to see every platform)" }
+
         $releaseSplat = @{ Source = $Source } + $tokenSplat
         if($Version){ $releaseSplat.Version = $Version }
         $release = Get-MOTemplateRelease @releaseSplat
@@ -61,14 +82,18 @@ function Find-MOTemplate
         foreach($prop in ($manifest.templates.PSObject.Properties | Sort-Object Name)){
             if($prop.Name -notlike $Name){ continue }
             $platforms = @($prop.Value.platforms)
-            if($Platform -and $platforms -notcontains $Platform){ continue }
+            if($effPlatform -and $platforms -notcontains $effPlatform){ continue }
+            $entryCategory = if($prop.Value.category){ [string]$prop.Value.category } else { 'pipeline' }
+            if($Category -and $entryCategory -ne $Category){ continue }
 
             [pscustomobject]@{
                 Name        = $prop.Name
+                Category    = $entryCategory
+                Kind        = if($effPlatform -and $prop.Value.kind){ $prop.Value.kind.$effPlatform } else { $prop.Value.kind }
                 Description = $prop.Value.description
                 Platforms   = $platforms
                 Version     = $release.tag_name
-                Asset       = if($Platform){ $prop.Value.assets.$Platform } else { $prop.Value.assets }
+                Asset       = if($effPlatform){ $prop.Value.assets.$effPlatform } else { $prop.Value.assets }
             }
         }
     }

@@ -58,6 +58,20 @@ Describe 'Write-MOTemplateLock' {
         $back.templates['alpha'].sha256 | Should -Be 'AAA'
     }
 
+    It 'round-trips a defaults block (e.g. defaults.platform)' {
+        $path = Join-Path $tmp '.modusops.lock'
+        Write-MOTemplateLock -Lock @{ defaults = @{ platform = 'gh' }; templates = @{ alpha = @{ version = 'v1' } } } -Path $path
+        $back = Read-MOTemplateLock -Path $path
+        $back.defaults.platform | Should -Be 'gh'
+        $back.templates['alpha'].version | Should -Be 'v1'
+    }
+
+    It 'omits an empty defaults block so existing lockfiles do not gain noise' {
+        $path = Join-Path $tmp '.modusops.lock'
+        Write-MOTemplateLock -Lock @{ source = 'https://x/y'; defaults = @{}; templates = @{ alpha = @{ version = 'v1' } } } -Path $path
+        (Get-Content -LiteralPath $path -Raw) | Should -Not -Match 'defaults'
+    }
+
     It 'writes template entries in sorted name order for stable diffs' {
         $path = Join-Path $tmp '.modusops.lock'
         $lock = @{

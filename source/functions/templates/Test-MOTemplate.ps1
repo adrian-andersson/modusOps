@@ -46,11 +46,17 @@ function Test-MOTemplate
             $entry = $lock.templates[$key]
             $localPath = Join-Path $projectRoot $entry.path
 
+            #Recompute the anchor the same way it was pinned: tree hash for a directory set, else file SHA256.
+            $mode = if($entry.integrity){ [string]$entry.integrity } else { 'file' }
             if(-not (Test-Path -LiteralPath $localPath)){
                 $status = 'Missing'
                 $actual = $null
             }else{
-                $actual = (Get-FileHash -LiteralPath $localPath -Algorithm SHA256).Hash
+                $actual = if($mode -eq 'tree'){
+                    Get-MOTreeHash -Path $localPath
+                }else{
+                    (Get-FileHash -LiteralPath $localPath -Algorithm SHA256).Hash
+                }
                 $status = if($actual -eq $entry.sha256){ 'OK' } else { 'Drifted' }
             }
             if($status -ne 'OK'){ Write-Warning "Template '$key' integrity: $status ($($entry.path))" }

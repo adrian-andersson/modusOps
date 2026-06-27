@@ -6,8 +6,10 @@ function Write-MOTemplateLock
 
         .DESCRIPTION
             Serialises the hashtable structure produced by Read-MOTemplateLock. Template entries are
-            emitted in sorted name order so the lockfile produces minimal, review-friendly diffs. Written
-            UTF8 without a trailing newline drift. Pairs with Read-MOTemplateLock.
+            emitted in sorted name order so the lockfile produces minimal, review-friendly diffs. The
+            `defaults` block (e.g. defaults.platform) is emitted only when non-empty, so locks that never
+            set a default stay byte-identical to before. Written UTF8 without a trailing newline drift.
+            Pairs with Read-MOTemplateLock.
 
         .NOTES
             Author: Adrian Andersson
@@ -30,8 +32,14 @@ function Write-MOTemplateLock
         $out = [ordered]@{
             lockfileVersion = if($Lock.lockfileVersion){ $Lock.lockfileVersion } else { 1 }
             source          = $Lock.source
-            templates       = $orderedTemplates
         }
+        #Only emit defaults when something is set, so existing lockfiles don't gain an empty block.
+        if($Lock.defaults -and $Lock.defaults.Keys.Count -gt 0){
+            $orderedDefaults = [ordered]@{}
+            foreach($k in ($Lock.defaults.Keys | Sort-Object)){ $orderedDefaults[$k] = $Lock.defaults[$k] }
+            $out.defaults = $orderedDefaults
+        }
+        $out.templates = $orderedTemplates
 
         $json = $out | ConvertTo-Json -Depth 10
         Set-Content -LiteralPath $Path -Value $json -Encoding utf8

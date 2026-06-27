@@ -13,6 +13,8 @@ BeforeAll {
         'Invoke-GitHubRest.ps1'
         'Save-GitHubReleaseAsset.ps1'
         'Resolve-MOTemplateAsset.ps1'
+        'Resolve-MOPlatform.ps1'
+        'Get-MOTreeHash.ps1'
         'Get-MOTemplateRelease.ps1'
         'Get-MOTemplateManifest.ps1'
         'Read-MOTemplateLock.ps1'
@@ -74,12 +76,12 @@ Describe 'Add-MOTemplate' {
     }
 
     It 'vendors the template file under the templates dir' {
-        Add-MOTemplate -Name registerModusOpsFeeds -ProjectPath $tmp
+        Add-MOTemplate -Name registerModusOpsFeeds -Platform azd -ProjectPath $tmp
         (Test-Path (Join-Path $tmp 'templates/registerModusOpsFeeds.yml')) | Should -BeTrue
     }
 
     It 'records the entry with a SHA256 in the lockfile' {
-        Add-MOTemplate -Name registerModusOpsFeeds -ProjectPath $tmp
+        Add-MOTemplate -Name registerModusOpsFeeds -Platform azd -ProjectPath $tmp
         $lockPath = Join-Path $tmp '.modusops.lock'
         (Test-Path $lockPath) | Should -BeTrue
         $lock = Get-Content $lockPath -Raw | ConvertFrom-Json
@@ -93,13 +95,13 @@ Describe 'Add-MOTemplate' {
     }
 
     It 'returns the lock entry including the name' {
-        $result = Add-MOTemplate -Name registerModusOpsFeeds -ProjectPath $tmp
+        $result = Add-MOTemplate -Name registerModusOpsFeeds -Platform azd -ProjectPath $tmp
         $result.name | Should -Be 'registerModusOpsFeeds'
         $result.version | Should -Be 'v0.1.0'
     }
 
     It 'throws when the template is not in the manifest' {
-        { Add-MOTemplate -Name ghostTemplate -ProjectPath $tmp } | Should -Throw '*not in the manifest*'
+        { Add-MOTemplate -Name ghostTemplate -Platform azd -ProjectPath $tmp } | Should -Throw '*not in the manifest*'
     }
 
     It 'throws when the requested platform has no asset' {
@@ -107,7 +109,7 @@ Describe 'Add-MOTemplate' {
     }
 
     It 'honours -WhatIf - downloads nothing and writes no lockfile' {
-        Add-MOTemplate -Name registerModusOpsFeeds -ProjectPath $tmp -WhatIf
+        Add-MOTemplate -Name registerModusOpsFeeds -Platform azd -ProjectPath $tmp -WhatIf
         Should -Invoke Save-GitHubReleaseAsset -Times 0
         (Test-Path (Join-Path $tmp '.modusops.lock')) | Should -BeFalse
     }
@@ -168,5 +170,102 @@ Describe 'Add-MOTemplate (gh composite action)' {
         # The pinned hash is the SHA256 of the laid-down action.yml (Test-MOTemplate verifies against this).
         $actual = (Get-FileHash -LiteralPath (Join-Path $tmp $entry.path) -Algorithm SHA256).Hash
         $entry.sha256 | Should -Be $actual
+    }
+}
+
+Describe 'Add-MOTemplate (repoScaffold workflow -> fixed dest)' {
+    BeforeEach {
+        $tmp = Join-Path $testTempBase ([guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+
+        Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
+        Mock Invoke-WebRequest { throw 'No real HTTP in tests' }
+
+        Mock Get-MOTemplateRelease {
+            [pscustomobject]@{
+                tag_name = 'v1'
+                assets   = @(
+                    [pscustomobject]@{ name = 'gh.workflow.prValidation.yml'; browser_download_url = 'https://example/gh.workflow.prValidation.yml' }
+                    [pscustomobject]@{ name = 'manifest.json'; browser_download_url = 'https://example/manifest.json' }
+                )
+            }
+        }
+        Mock Get-MOTemplateManifest {
+            @{
+                templates = @{
+                    prValidation = @{
+                        category  = 'repoScaffold'
+                        kind      = @{ gh = 'workflow' }
+                        platforms = @('gh')
+                        assets    = @{ gh = 'gh.workflow.prValidation.yml' }
+                        dest      = @{ gh = '.github/workflows/prValidation.yml' }
+                    }
+                }
+            } | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+        }
+        Mock Save-GitHubReleaseAsset { Set-Content -LiteralPath $Path -Value "name: PR validation`non: pull_request" -NoNewline }
+    }
+    AfterEach {
+        if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'vendors to the manifest dest under .github, not the templates dir' {
+        Add-MOTemplate -Name prValidation -Platform gh -ProjectPath $tmp
+        (Test-Path (Join-Path $tmp '.github/workflows/prValidation.yml')) | Should -BeTrue
+        (Test-Path (Join-Path $tmp 'templates/prValidation.yml')) | Should -BeFalse
+    }
+
+    It 'records category, kind, integrity and the dest path in the lockfile' {
+        Add-MOTemplate -Name prValidation -Platform gh -ProjectPath $tmp
+        $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
+        $entry = $lock.templates.prValidation
+        $entry.platform  | Should -Be 'gh'
+        $entry.category  | Should -Be 'repoScaffold'
+        $entry.kind      | Should -Be 'workflow'
+        $entry.integrity | Should -Be 'file'
+        $entry.path      | Should -Be '.github/workflows/prValidation.yml'
+    }
+}
+
+Describe 'Add-MOTemplate (platform defaulting)' {
+    BeforeEach {
+        $tmp = Join-Path $testTempBase ([guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+
+        Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
+        Mock Invoke-WebRequest { throw 'No real HTTP in tests' }
+
+        Mock Get-MOTemplateRelease {
+            [pscustomobject]@{
+                tag_name = 'v0.1.0'
+                assets   = @(
+                    [pscustomobject]@{ name = 'azd.registerModusOpsFeeds.yml'; browser_download_url = 'https://example/azd.registerModusOpsFeeds.yml' }
+                    [pscustomobject]@{ name = 'manifest.json'; browser_download_url = 'https://example/manifest.json' }
+                )
+            }
+        }
+        Mock Get-MOTemplateManifest {
+            @{ templates = @{ registerModusOpsFeeds = @{ platforms = @('azd'); assets = @{ azd = 'azd.registerModusOpsFeeds.yml' } } } } |
+                ConvertTo-Json -Depth 6 | ConvertFrom-Json
+        }
+        Mock Save-GitHubReleaseAsset { Set-Content -LiteralPath $Path -Value "steps:`n  - script: echo hi" -NoNewline }
+    }
+    AfterEach {
+        if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'seeds defaults.platform on first add' {
+        Add-MOTemplate -Name registerModusOpsFeeds -Platform azd -ProjectPath $tmp
+        $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
+        $lock.defaults.platform | Should -Be 'azd'
+    }
+
+    It 'reuses the seeded default so a later add needs no -Platform' {
+        Add-MOTemplate -Name registerModusOpsFeeds -Platform azd -ProjectPath $tmp
+        { Add-MOTemplate -Name registerModusOpsFeeds -ProjectPath $tmp } | Should -Not -Throw
+    }
+
+    It 'throws a directive error when the platform cannot be resolved' {
+        { Add-MOTemplate -Name registerModusOpsFeeds -ProjectPath $tmp } | Should -Throw '*Set-MOPlatform*'
     }
 }

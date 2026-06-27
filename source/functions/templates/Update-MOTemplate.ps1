@@ -85,11 +85,15 @@ function Update-MOTemplate
                 if($newSha -eq $entry.sha256){
                     $status = 'Unchanged'
                 }else{
-                    $dir = Split-Path -Parent $localPath
-                    if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }
                     if($staged.IsArchive){
+                        #Composite action (file integrity): copy into <name>/ (parent of action.yml).
+                        #Directory set (tree integrity): the lock path IS the dest directory.
+                        $dir = if($staged.IntegrityMode -eq 'tree'){ $localPath } else { Split-Path -Parent $localPath }
+                        if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }
                         Copy-Item -Path (Join-Path $staged.ContentPath '*') -Destination $dir -Recurse -Force
                     }else{
+                        $dir = Split-Path -Parent $localPath
+                        if(-not (Test-Path -LiteralPath $dir)){ New-Item -ItemType Directory -Path $dir -Force | Out-Null }
                         Copy-Item -LiteralPath $staged.ContentPath -Destination $localPath -Force
                     }
                     $status = 'Changed'
@@ -100,10 +104,12 @@ function Update-MOTemplate
             }
 
             $fromVersion = $entry.version
-            #Re-pin version + (when changed) sha/url
-            $entry.version = $release.tag_name
-            $entry.asset   = $assetName
-            $entry.url     = $asset.browser_download_url
+            #Re-pin version + (when changed) sha/url. Keep the integrity mode current (e.g. older locks
+            #predate the field) so Test-MOTemplate verifies the right way.
+            $entry.version   = $release.tag_name
+            $entry.asset     = $assetName
+            $entry.integrity = $staged.IntegrityMode
+            $entry.url       = $asset.browser_download_url
             if($status -eq 'Changed'){ $entry.sha256 = $newSha }
             $lock.templates[$key] = $entry
 
