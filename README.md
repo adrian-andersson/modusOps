@@ -57,7 +57,7 @@ Install-PSResource -Name modusOps
 | `Find-MOTemplate` | Discover templates in the library (scoped to your platform; `-AllPlatforms` to widen). |
 | `Add-MOTemplate` | Vendor one pinned asset to its dest + record it in `.modusops.lock`. |
 | `Find-MOArchetype` | Discover the **sets** (archetypes) — curated bundles or derived selectors. |
-| `Add-MORepoScaffold` | Stamp a whole set of repo furniture in one call, each member lock-pinned. |
+| `Add-MORepoScaffold` | Stamp a whole set in one call — vendor file members and, on azd, run allow-listed provisioning steps; each lock-pinned. |
 | `Update-MOTemplate` | Re-pull at a newer version, rewriting only what changed. |
 | `Test-MOTemplate` | Offline integrity check of vendored files against the lockfile (file SHA or tree hash). |
 | `Get-MOTemplate` | List installed templates + their archetype (reads the lockfile). |
@@ -65,6 +65,11 @@ Install-PSResource -Name modusOps
 > **Platform defaulting.** Pass `-Platform` once (or `Set-MOPlatform gh`) and it's seeded into
 > `.modusops.lock`; every later command resolves it from there (or auto-detects `.github/` vs
 > `azure-pipelines.yml`), so the catalog and vendoring only deal with what's relevant.
+
+**Archetypes** are named bundles in the library — a curated list, or a derived selector over
+`category`/`kind`. A step either *vendors a file* or, on azd, *runs a provisioning cmdlet* (branch
+policy, repo permission) bound from `-With` + context. Provisioning is gated by a fixed **allow-list**,
+so a vendored manifest can never invoke an arbitrary command.
 
 ## Quick start
 
