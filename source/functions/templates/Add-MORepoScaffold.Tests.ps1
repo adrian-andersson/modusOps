@@ -18,7 +18,6 @@ BeforeAll {
         'Resolve-MOTemplateAsset.ps1'
         'Resolve-MOProvisionSplat.ps1'
         'Get-MOProvisionAllowList.ps1'
-        'Get-MOTreeHash.ps1'
         'Get-MOTemplateRelease.ps1'
         'Get-MOTemplateManifest.ps1'
         'Read-MOTemplateLock.ps1'

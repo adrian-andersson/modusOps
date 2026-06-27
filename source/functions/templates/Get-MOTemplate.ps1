@@ -45,6 +45,7 @@ function Get-MOTemplate
                 Platform  = $entry.platform
                 Category  = if($entry.category){ $entry.category } else { 'pipeline' }
                 Kind      = $entry.kind
+                RepoType  = $entry.repoType
                 Archetype = $entry.archetype
                 Path      = $entry.path
                 Sha256    = $entry.sha256

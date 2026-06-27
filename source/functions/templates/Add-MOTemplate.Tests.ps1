@@ -14,7 +14,6 @@ BeforeAll {
         'Save-GitHubReleaseAsset.ps1'
         'Resolve-MOTemplateAsset.ps1'
         'Resolve-MOPlatform.ps1'
-        'Get-MOTreeHash.ps1'
         'Get-MOTemplateRelease.ps1'
         'Get-MOTemplateManifest.ps1'
         'Read-MOTemplateLock.ps1'
@@ -195,6 +194,7 @@ Describe 'Add-MOTemplate (repoScaffold workflow -> fixed dest)' {
                 templates = @{
                     prValidation = @{
                         category  = 'repoScaffold'
+                        repoType  = 'templatesRepo'
                         kind      = @{ gh = 'workflow' }
                         platforms = @('gh')
                         assets    = @{ gh = 'gh.workflow.prValidation.yml' }
@@ -215,15 +215,15 @@ Describe 'Add-MOTemplate (repoScaffold workflow -> fixed dest)' {
         (Test-Path (Join-Path $tmp 'templates/prValidation.yml')) | Should -BeFalse
     }
 
-    It 'records category, kind, integrity and the dest path in the lockfile' {
+    It 'records category, kind, repoType and the dest path in the lockfile' {
         Add-MOTemplate -Name prValidation -Platform gh -ProjectPath $tmp
         $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
         $entry = $lock.templates.prValidation
-        $entry.platform  | Should -Be 'gh'
-        $entry.category  | Should -Be 'repoScaffold'
-        $entry.kind      | Should -Be 'workflow'
-        $entry.integrity | Should -Be 'file'
-        $entry.path      | Should -Be '.github/workflows/prValidation.yml'
+        $entry.platform | Should -Be 'gh'
+        $entry.category | Should -Be 'repoScaffold'
+        $entry.kind     | Should -Be 'workflow'
+        $entry.repoType | Should -Be 'templatesRepo'
+        $entry.path     | Should -Be '.github/workflows/prValidation.yml'
     }
 }
 
