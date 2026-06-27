@@ -100,13 +100,14 @@ function Add-MOTemplate
         #the consumer-chosen templates dir, as before.
         $category  = if($mEntry.category){ [string]$mEntry.category } else { 'pipeline' }
         $kind      = if($mEntry.kind -and $mEntry.kind.$resolvedPlatform){ [string]$mEntry.kind.$resolvedPlatform } else { $null }
+        $repoType  = if($mEntry.repoType){ [string]$mEntry.repoType } else { $null }
         $isArchive = $assetName -like '*.zip'
 
         if($category -eq 'repoScaffold'){
             $destRel = $mEntry.dest.$resolvedPlatform
             if(-not $destRel){ throw "repoScaffold template '$Name' has no 'dest' for platform '$resolvedPlatform' in the manifest." }
             $relativePath = ([string]$destRel) -replace '\\','/'
-            $localPath    = Join-Path $projectRoot $relativePath   # a file (workflow/md) or a dir (issue set)
+            $localPath    = Join-Path $projectRoot $relativePath   # a single file at its fixed dest
         }else{
             #Pipeline: asset extension drives layout - .zip (composite action) -> <name>/action.yml; else <name>.yml.
             $templatesDir = Join-Path $projectRoot $Path
@@ -128,9 +129,8 @@ function Add-MOTemplate
         $staged = Resolve-MOTemplateAsset -Uri $asset.browser_download_url -AssetName $assetName @tokenSplat
         try{
             if($staged.IsArchive){
-                #A composite action copies into <name>/ (parent of action.yml); a repoScaffold directory set
-                #(tree integrity) copies into the dest directory itself.
-                $destDir = if($staged.IntegrityMode -eq 'tree'){ $localPath } else { Split-Path -Parent $localPath }
+                #A composite action copies the expanded dir (action.yml + any sidecars) into <name>/.
+                $destDir = Split-Path -Parent $localPath
                 if(-not (Test-Path -LiteralPath $destDir)){ New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
                 Copy-Item -Path (Join-Path $staged.ContentPath '*') -Destination $destDir -Recurse -Force
             }else{
@@ -138,8 +138,7 @@ function Add-MOTemplate
                 if(-not (Test-Path -LiteralPath $destDir)){ New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
                 Copy-Item -LiteralPath $staged.ContentPath -Destination $localPath -Force
             }
-            $sha       = $staged.Sha256
-            $integrity = $staged.IntegrityMode
+            $sha = $staged.Sha256
         }
         finally{
             if(Test-Path -LiteralPath $staged.StageRoot){ Remove-Item -LiteralPath $staged.StageRoot -Recurse -Force -ErrorAction SilentlyContinue }
@@ -156,9 +155,9 @@ function Add-MOTemplate
             platform  = $resolvedPlatform
             category  = $category
             kind      = $kind
+            repoType  = $repoType
             asset     = $assetName
             path      = $relativePath
-            integrity = $integrity
             sha256    = $sha
             url       = $asset.browser_download_url
         }

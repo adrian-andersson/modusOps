@@ -8,7 +8,7 @@ BeforeAll {
         if (-not $sourceMap.ContainsKey($_.Name)) { $sourceMap[$_.Name] = $_.FullName }
     }
 
-    foreach($dep in @('Read-MOTemplateLock.ps1', 'Get-MOTreeHash.ps1')){
+    foreach($dep in @('Read-MOTemplateLock.ps1', 'Get-MOTemplateRelease.ps1')){
         if ($sourceMap.ContainsKey($dep)) { . $sourceMap[$dep] }
         else { Write-Warning "Dependency not found under source: $dep" }
     }
@@ -61,9 +61,10 @@ Describe 'Test-MOTemplate' {
         if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     }
 
-    It 'reports OK when the local file matches the pinned hash' {
+    It 'reports OK (with the pinned Version) when the local file matches the pinned hash' {
         $result = @(Test-MOTemplate -Name alpha -ProjectPath $tmp)
-        $result[0].Status | Should -Be 'OK'
+        $result[0].Status  | Should -Be 'OK'
+        $result[0].Version | Should -Be 'v1'
     }
 
     It 'reports Drifted when the local file was edited' {
@@ -85,11 +86,21 @@ Describe 'Test-MOTemplate' {
         ($result | Where-Object { $_.Name -eq 'alpha' }).Status | Should -Be 'OK'
     }
 
-    It 'makes no network calls (offline)' {
+    It 'makes no network calls by default (offline)' {
         Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
         Mock Invoke-WebRequest { throw 'No real HTTP in tests' }
         Test-MOTemplate -ProjectPath $tmp -WarningAction SilentlyContinue | Out-Null
         Should -Invoke Invoke-RestMethod -Times 0
         Should -Invoke Invoke-WebRequest -Times 0
+    }
+
+    It 'annotates Latest / UpdateAvailable with -CheckUpdate' {
+        Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
+        Mock Get-MOTemplateRelease { [pscustomobject]@{ tag_name = 'v3'; assets = @() } }
+        $result = @(Test-MOTemplate -Name alpha -ProjectPath $tmp -CheckUpdate)
+        $result[0].Version         | Should -Be 'v1'
+        $result[0].Latest          | Should -Be 'v3'
+        $result[0].UpdateAvailable | Should -BeTrue
+        Should -Invoke Get-MOTemplateRelease -Times 1
     }
 }

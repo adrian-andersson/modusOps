@@ -45,6 +45,10 @@ function Find-MOTemplate
         #Filter to a category: pipeline (compose into a pipeline) or repoScaffold (repo furniture)
         [ValidateSet('pipeline','repoScaffold')]
         [string]$Category,
+        #Filter to a kind, e.g. workflow / compositeAction / issueTemplate / prTemplate / stepTemplate
+        [string]$Kind,
+        #Filter to a repo type for repoScaffold assets, e.g. templatesRepo
+        [string]$RepoType,
         #Consumer repo root (used to resolve the default platform when -Platform is omitted)
         [string]$ProjectPath = '.',
         #Lockfile name (relative to ProjectPath)
@@ -86,10 +90,22 @@ function Find-MOTemplate
             $entryCategory = if($prop.Value.category){ [string]$prop.Value.category } else { 'pipeline' }
             if($Category -and $entryCategory -ne $Category){ continue }
 
+            $entryRepoType = if($prop.Value.repoType){ [string]$prop.Value.repoType } else { $null }
+            if($RepoType -and $entryRepoType -ne $RepoType){ continue }
+
+            #Kind filter: against the resolved platform's kind when known, else any platform's kind.
+            if($Kind){
+                $kinds = if($prop.Value.kind){
+                    if($effPlatform){ @($prop.Value.kind.$effPlatform) } else { @($prop.Value.kind.PSObject.Properties.Value) }
+                } else { @() }
+                if($kinds -notcontains $Kind){ continue }
+            }
+
             [pscustomobject]@{
                 Name        = $prop.Name
                 Category    = $entryCategory
                 Kind        = if($effPlatform -and $prop.Value.kind){ $prop.Value.kind.$effPlatform } else { $prop.Value.kind }
+                RepoType    = $entryRepoType
                 Description = $prop.Value.description
                 Platforms   = $platforms
                 Version     = $release.tag_name
