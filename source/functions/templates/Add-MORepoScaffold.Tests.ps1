@@ -16,7 +16,7 @@ BeforeAll {
         'Resolve-MOArchetype.ps1'
         'Resolve-MOPlatform.ps1'
         'Resolve-MOTemplateAsset.ps1'
-        'Resolve-MOProvisionArgs.ps1'
+        'Resolve-MOProvisionSplat.ps1'
         'Get-MOProvisionAllowList.ps1'
         'Get-MOTreeHash.ps1'
         'Get-MOTemplateRelease.ps1'

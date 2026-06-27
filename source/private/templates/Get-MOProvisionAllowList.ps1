@@ -18,7 +18,8 @@ function Get-MOProvisionAllowList
     [OutputType([string[]])]
     PARAM()
     process{
-        ,@(
+        #Inline [string[]] cast on the returned expression so the type matches the declared OutputType.
+        return [string[]]@(
             'Add-MOAzureDevOpsModusBuildValidation'
             'Add-MOAzureDevOpsModusResourceAuthorization'
             'Set-MOAzureDevOpsModusRepoPermission'

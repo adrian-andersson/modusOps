@@ -1,4 +1,4 @@
-function Resolve-MOProvisionArgs
+function Resolve-MOProvisionSplat
 {
     <#
         .SYNOPSIS
@@ -36,33 +36,38 @@ function Resolve-MOProvisionArgs
         [string[]]$AcceptedParameters = @()
     )
     process{
-        # Local placeholder resolver: whole-value "{key}" preserves type; embedded "{key}" interpolates.
-        $expand = {
-            param($value)
-            if($value -isnot [string]){ return $value }
+        $splat = @{}
+
+        foreach($key in $With.Keys){
+            $value = $With[$key]
+            if($value -isnot [string]){
+                $splat[$key] = $value
+                continue
+            }
             $whole = [regex]::Match($value, '^\{(\w+)\}$')
             if($whole.Success){
-                $k = $whole.Groups[1].Value
-                if(-not $Values.ContainsKey($k)){ throw "Provision step references unknown placeholder '{$k}'." }
-                return $Values[$k]
+                #Whole-value placeholder: substitute the RAW value so type is preserved (int stays int).
+                $token = $whole.Groups[1].Value
+                if(-not $Values.ContainsKey($token)){ throw "Provision step references unknown placeholder '{$token}'." }
+                $splat[$key] = $Values[$token]
+                continue
             }
-            return [regex]::Replace($value, '\{(\w+)\}', {
-                param($m)
-                $k = $m.Groups[1].Value
-                if(-not $Values.ContainsKey($k)){ throw "Provision step references unknown placeholder '{$k}'." }
-                [string]$Values[$k]
-            })
+            #Embedded placeholder(s): string interpolation.
+            $resolved = $value
+            foreach($m in [regex]::Matches($value, '\{(\w+)\}')){
+                $token = $m.Groups[1].Value
+                if(-not $Values.ContainsKey($token)){ throw "Provision step references unknown placeholder '{$token}'." }
+                $resolved = $resolved.Replace($m.Value, [string]$Values[$token])
+            }
+            $splat[$key] = $resolved
         }
 
-        $splat = @{}
-        foreach($key in $With.Keys){
-            $splat[$key] = & $expand $With[$key]
-        }
         foreach($key in $Context.Keys){
             if($null -eq $Context[$key]){ continue }
             if($AcceptedParameters -and ($AcceptedParameters -notcontains $key)){ continue }
             if(-not $splat.ContainsKey($key)){ $splat[$key] = $Context[$key] }
         }
+
         return $splat
     }
 }

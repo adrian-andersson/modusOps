@@ -23,7 +23,7 @@ function Resolve-MOArchetype
             Author: Adrian Andersson
     #>
     [CmdletBinding()]
-    [OutputType([PSCustomObject])]
+    [OutputType([psobject[]])]
     PARAM(
         #Parsed manifest (as returned by Get-MOTemplateManifest)
         [Parameter(Mandatory)]
@@ -101,6 +101,7 @@ function Resolve-MOArchetype
             #Narrow to file members of the requested kind(s); provision steps are dropped by a kind filter.
             $ordered = @($ordered | Where-Object { $_.StepType -eq 'file' -and $Include -contains $_.Kind })
         }
-        return $ordered
+        #Cast to PSCustomObject[] so the element type matches the declared OutputType.
+        return [pscustomobject[]]$ordered
     }
 }

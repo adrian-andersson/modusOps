@@ -2,7 +2,7 @@ BeforeAll {
 
     $currentPath = $(Get-Location).path
     $fileName     = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
-    $functionName = 'Resolve-MOProvisionArgs'
+    $functionName = 'Resolve-MOProvisionSplat'
     . $fileName
 }
 
@@ -13,20 +13,20 @@ Describe 'Check Clean Environment' {
     }
 }
 
-Describe 'Resolve-MOProvisionArgs' {
+Describe 'Resolve-MOProvisionSplat' {
     It 'binds a whole-value placeholder preserving type (int stays int)' {
-        $splat = Resolve-MOProvisionArgs -With @{ BuildDefinitionId = '{buildId}' } -Values @{ buildId = 42 }
+        $splat = Resolve-MOProvisionSplat -With @{ BuildDefinitionId = '{buildId}' } -Values @{ buildId = 42 }
         $splat.BuildDefinitionId | Should -Be 42
         $splat.BuildDefinitionId | Should -BeOfType ([int])
     }
 
     It 'interpolates an embedded placeholder into a string' {
-        $splat = Resolve-MOProvisionArgs -With @{ IdentityName = '{repo} Build Service' } -Values @{ repo = 'modusOps' }
+        $splat = Resolve-MOProvisionSplat -With @{ IdentityName = '{repo} Build Service' } -Values @{ repo = 'modusOps' }
         $splat.IdentityName | Should -Be 'modusOps Build Service'
     }
 
     It 'threads context params the cmdlet accepts, and drops those it does not' {
-        $splat = Resolve-MOProvisionArgs -With @{ RepositoryName = '{repo}' } -Values @{ repo = 'r' } `
+        $splat = Resolve-MOProvisionSplat -With @{ RepositoryName = '{repo}' } -Values @{ repo = 'r' } `
             -Context @{ OrganizationUri = 'https://x'; ProjectName = 'p' } `
             -AcceptedParameters @('OrganizationUri','RepositoryName')
         $splat.OrganizationUri | Should -Be 'https://x'
@@ -35,17 +35,17 @@ Describe 'Resolve-MOProvisionArgs' {
     }
 
     It 'does not let context override a value the step already set' {
-        $splat = Resolve-MOProvisionArgs -With @{ ProjectName = 'fromStep' } -Values @{} `
+        $splat = Resolve-MOProvisionSplat -With @{ ProjectName = 'fromStep' } -Values @{} `
             -Context @{ ProjectName = 'fromContext' } -AcceptedParameters @('ProjectName')
         $splat.ProjectName | Should -Be 'fromStep'
     }
 
     It 'skips null context values' {
-        $splat = Resolve-MOProvisionArgs -With @{} -Values @{} -Context @{ ProjectName = $null } -AcceptedParameters @('ProjectName')
+        $splat = Resolve-MOProvisionSplat -With @{} -Values @{} -Context @{ ProjectName = $null } -AcceptedParameters @('ProjectName')
         $splat.ContainsKey('ProjectName') | Should -BeFalse
     }
 
     It 'throws on an unknown placeholder' {
-        { Resolve-MOProvisionArgs -With @{ RepositoryName = '{missing}' } -Values @{} } | Should -Throw '*missing*'
+        { Resolve-MOProvisionSplat -With @{ RepositoryName = '{missing}' } -Values @{} } | Should -Throw '*missing*'
     }
 }

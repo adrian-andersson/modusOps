@@ -40,7 +40,7 @@ function Add-MORepoScaffold
             Author: Adrian Andersson
     #>
     [CmdletBinding(SupportsShouldProcess)]
-    [OutputType([PSCustomObject])]
+    [OutputType([psobject[]])]
     PARAM(
         #Set / archetype name (see Find-MOArchetype)
         [Parameter(Mandatory)]
@@ -128,7 +128,7 @@ function Add-MORepoScaffold
                     throw "Archetype '$Archetype' provision step '$($m.Name)' names cmdlet '$($m.Cmdlet)', which is not in the provisioning allow-list."
                 }
                 $cmd = Get-Command -Name $m.Cmdlet -ErrorAction Stop
-                $splat = Resolve-MOProvisionArgs -With $m.With -Values $With -Context $context -AcceptedParameters @($cmd.Parameters.Keys)
+                $splat = Resolve-MOProvisionSplat -With $m.With -Values $With -Context $context -AcceptedParameters @($cmd.Parameters.Keys)
                 $status = 'Skipped'
                 if($PSCmdlet.ShouldProcess("$($m.Cmdlet) [$($m.Name)]", 'Provision')){
                     & $cmd @splat | Out-Null
@@ -160,6 +160,7 @@ function Add-MORepoScaffold
             Write-MOTemplateLock -Lock $lock -Path $lockPath
         }
 
-        $results
+        #Return as PSCustomObject[] so the element type matches the declared OutputType.
+        return [pscustomobject[]]$results
     }
 }
