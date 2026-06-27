@@ -42,23 +42,26 @@ That hash - not the release tag - is the integrity anchor, because release asset
       "version": "v1", "platform": "gh", "category": "pipeline", "kind": "compositeAction",
       "asset": "gh.registerModusOpsFeeds.zip",
       "path": "templates/registerModusOpsFeeds/action.yml",
-      "integrity": "file", "sha256": "....",
+      "sha256": "....",
       "url": "https://github.com/.../gh.registerModusOpsFeeds.zip"
     },
-    "prValidation": {                         // repo furniture, vendored to a fixed dest
+    "templatesRepoPRValidation": {            // repo furniture, vendored to a fixed dest
       "version": "v1", "platform": "gh", "category": "repoScaffold", "kind": "workflow",
-      "asset": "gh.workflow.prValidation.yml",
+      "repoType": "templatesRepo",
+      "asset": "gh.workflow.templatesRepoPRValidation.yml",
       "path": ".github/workflows/prValidation.yml",
-      "integrity": "file", "sha256": "....",
+      "sha256": "....",
       "archetype": "templateLibrary", "archetypeVersion": "v1"
     }
   }
 }
 ```
 
-`integrity` says how the anchor is recomputed (`file` SHA256, or `tree` for a multi-file directory set);
-`Test-MOTemplate` recomputes each vendored file's hash that way and compares it to the lock - entirely
-offline, so it is a cheap CI gate. (Versions are rolling integers, `vN` - see
+The anchor is **always a single file SHA256** — for a composite action it's the inner `action.yml`.
+`Test-MOTemplate` recomputes each vendored file's hash and compares it to the lock - entirely offline,
+so it is a cheap CI gate, and it reports the pinned `Version` per row (add `-CheckUpdate` to also flag
+when a newer release is available). `repoScaffold` entries also carry a `repoType` naming the kind of
+repo they furnish. (Versions are rolling integers, `vN` - see
 [Authoring templates](./authoring.md#release).)
 
 ## The verbs

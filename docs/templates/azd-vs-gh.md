@@ -25,12 +25,14 @@ just the platform:
 
 | Shape | Examples | Anchor |
 | --- | --- | --- |
-| single file | azd template, gh workflow, PR template | file SHA256 |
+| single file | azd template, gh workflow, PR template, one issue form | file SHA256 |
 | composite action (dir with `action.yml`) | gh register / install / notify | the inner `action.yml` SHA256 |
-| directory set (multi-file dir) | issue-template set | canonical **tree hash** (sorted relative paths + per-file SHA256, hashed) |
 
-A single-file composite action stays on the plain `action.yml` SHA256 (a simple lock-vs-file check);
-only a genuinely multi-file directory needs the tree hash, since a zip is not byte-reproducible.
+The anchor is **always a single file SHA256** - a composite action just anchors on its inner
+`action.yml`. Repo furniture that would once have been a multi-file directory (the issue-template set)
+is split into one asset per file - e.g. `templatesRepoIssue` and `templatesRepoIssueConfig` - so every
+asset stays on the simple lock-vs-file check and a shared dest dir never causes false drift. (The
+earlier canonical tree-hash path has been retired.)
 
 GitHub **`repoScaffold`** assets - workflows and PR/issue templates - vendor to a **fixed dest** under
 `.github/` rather than a chosen templates dir. See [Repo scaffolding (archetypes)](./repo-scaffolding.md).
