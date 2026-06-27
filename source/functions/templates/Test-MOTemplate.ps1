@@ -44,13 +44,21 @@ function Test-MOTemplate
         foreach($key in ($lock.templates.Keys | Sort-Object)){
             if($key -notlike $Name){ continue }
             $entry = $lock.templates[$key]
+            #Provision markers are REST actions, not vendored files - there's nothing on disk to hash, so skip.
+            if($entry.kind -eq 'provision'){ continue }
             $localPath = Join-Path $projectRoot $entry.path
 
+            #Recompute the anchor the same way it was pinned: tree hash for a directory set, else file SHA256.
+            $mode = if($entry.integrity){ [string]$entry.integrity } else { 'file' }
             if(-not (Test-Path -LiteralPath $localPath)){
                 $status = 'Missing'
                 $actual = $null
             }else{
-                $actual = (Get-FileHash -LiteralPath $localPath -Algorithm SHA256).Hash
+                $actual = if($mode -eq 'tree'){
+                    Get-MOTreeHash -Path $localPath
+                }else{
+                    (Get-FileHash -LiteralPath $localPath -Algorithm SHA256).Hash
+                }
                 $status = if($actual -eq $entry.sha256){ 'OK' } else { 'Drifted' }
             }
             if($status -ne 'OK'){ Write-Warning "Template '$key' integrity: $status ($($entry.path))" }

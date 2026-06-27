@@ -8,9 +8,10 @@ BeforeAll {
         if (-not $sourceMap.ContainsKey($_.Name)) { $sourceMap[$_.Name] = $_.FullName }
     }
 
-    # The download seam is dot-sourced then mocked; no network in tests.
+    # The download seam is dot-sourced then mocked; no network in tests. Get-MOTreeHash is real (pure hash).
     $dependencies = @(
         'Save-GitHubReleaseAsset.ps1'
+        'Get-MOTreeHash.ps1'
     )
     $dependencies.ForEach{
         if ($sourceMap.ContainsKey($_)) { . $sourceMap[$_] }
@@ -61,6 +62,7 @@ Describe 'Resolve-MOTemplateAsset' {
             $r = Resolve-MOTemplateAsset -Uri 'https://example/azd.foo.yml' -AssetName 'azd.foo.yml'
             try {
                 $r.IsArchive | Should -BeFalse
+                $r.IntegrityMode | Should -Be 'file'
                 $r.EntryName | Should -Be 'azd.foo.yml'
                 (Test-Path -LiteralPath $r.EntryFile) | Should -BeTrue
                 (Get-Content -LiteralPath $r.EntryFile -Raw) | Should -Be $script:ymlContent
@@ -96,6 +98,7 @@ Describe 'Resolve-MOTemplateAsset' {
             $r = Resolve-MOTemplateAsset -Uri 'https://example/gh.foo.zip' -AssetName 'gh.foo.zip'
             try {
                 $r.IsArchive | Should -BeTrue
+                $r.IntegrityMode | Should -Be 'file'
                 $r.EntryName | Should -Be 'action.yml'
                 (Test-Path -LiteralPath $r.EntryFile) | Should -BeTrue
                 (Get-Content -LiteralPath $r.EntryFile -Raw) | Should -Be $script:actionContent
@@ -117,19 +120,32 @@ Describe 'Resolve-MOTemplateAsset' {
         }
     }
 
-    Context 'archive missing action.yml' {
+    Context 'archive without action.yml (directory set)' {
         BeforeEach {
+            # A multi-file dir set (e.g. an issue-template set) - no action.yml at root.
             Mock Save-GitHubReleaseAsset {
                 $src = Join-Path $script:tmp ('src' + [guid]::NewGuid().ToString('N'))
                 New-Item -ItemType Directory -Path $src -Force | Out-Null
-                Set-Content -LiteralPath (Join-Path $src 'notes.txt') -Value 'no action here' -NoNewline
+                Set-Content -LiteralPath (Join-Path $src 'issue.yml')   -Value 'name: x' -NoNewline
+                Set-Content -LiteralPath (Join-Path $src '_config.yml') -Value 'blank_issues_enabled: false' -NoNewline
                 Compress-Archive -Path (Join-Path $src '*') -DestinationPath $Path -Force
             }
         }
 
-        It 'throws when the zip has no action.yml' {
-            { Resolve-MOTemplateAsset -Uri 'https://example/gh.bad.zip' -AssetName 'gh.bad.zip' } |
-                Should -Throw '*action.yml*'
+        It 'treats it as a tree-hashed directory set instead of throwing' {
+            $r = Resolve-MOTemplateAsset -Uri 'https://example/gh.set.zip' -AssetName 'gh.set.zip'
+            try {
+                $r.IsArchive | Should -BeTrue
+                $r.IntegrityMode | Should -Be 'tree'
+                $r.EntryFile | Should -BeNullOrEmpty
+                (Test-Path -LiteralPath (Join-Path $r.ContentPath 'issue.yml')) | Should -BeTrue
+                (Test-Path -LiteralPath (Join-Path $r.ContentPath '_config.yml')) | Should -BeTrue
+                # Sha256 is the canonical tree hash (lowercase hex), matching a fresh recompute.
+                $r.Sha256 | Should -Be (Get-MOTreeHash -Path $r.ContentPath)
+                $r.Sha256 | Should -Match '^[0-9a-f]{64}$'
+            } finally {
+                if (Test-Path $r.StageRoot) { Remove-Item $r.StageRoot -Recurse -Force -ErrorAction SilentlyContinue }
+            }
         }
     }
 }

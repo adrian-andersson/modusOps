@@ -42,9 +42,9 @@ function Add-MOTemplate
         #Release tag to pull, e.g. v0.1.0. Omit for the latest release (recorded explicitly).
         [string]$Version,
 
-        #Target platform asset to vendor
+        #Target platform asset to vendor. Omit to resolve it (lockfile default, else repo-shape detection).
         [ValidateSet('azd','gh')]
-        [string]$Platform = 'azd',
+        [string]$Platform,
 
         #Consumer repo root holding the templates dir and lockfile
         [string]$ProjectPath = '.',
@@ -70,6 +70,15 @@ function Add-MOTemplate
         $tokenSplat = @{}
         if($Token){ $tokenSplat.Token = $Token }
 
+        $projectRoot = (Resolve-Path -LiteralPath $ProjectPath).Path
+        $lockPath    = Join-Path $projectRoot $LockFile
+
+        #Resolve the platform once (explicit -Platform > lockfile default > repo-shape auto-detect).
+        #Splat -Platform only when supplied, so an unbound value isn't rejected by the resolver's ValidateSet.
+        $platformSplat = @{}
+        if($Platform){ $platformSplat.Platform = $Platform }
+        $resolvedPlatform = Resolve-MOPlatform @platformSplat -ProjectPath $projectRoot -LockFile $LockFile
+
         #Resolve release + manifest, then map name -> platform asset
         $releaseSplat = @{ Source = $Source } + $tokenSplat
         if($Version){ $releaseSplat.Version = $Version }
@@ -78,63 +87,80 @@ function Add-MOTemplate
 
         $entry = $manifest.templates.PSObject.Properties | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
         if(-not $entry){ throw "Template '$Name' is not in the manifest for release '$($release.tag_name)'." }
+        $mEntry = $entry.Value
 
-        $assetName = $entry.Value.assets.$Platform
-        if(-not $assetName){ throw "Template '$Name' has no '$Platform' asset (platforms: $($entry.Value.platforms -join ', '))." }
+        $assetName = $mEntry.assets.$resolvedPlatform
+        if(-not $assetName){ throw "Template '$Name' has no '$resolvedPlatform' asset (platforms: $($mEntry.platforms -join ', '))." }
 
         $asset = @($release.assets) | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
         if(-not $asset){ throw "Release '$($release.tag_name)' is missing asset '$assetName'." }
 
-        #Resolve local paths. Asset extension drives the vendored layout: .zip (gh composite action) lands
-        #in a directory <name>/action.yml; everything else is a single file <name>.yml.
-        $projectRoot  = (Resolve-Path -LiteralPath $ProjectPath).Path
-        $templatesDir = Join-Path $projectRoot $Path
-        $isArchive    = $assetName -like '*.zip'
-        if($isArchive){
-            $localPath    = Join-Path (Join-Path $templatesDir $Name) 'action.yml'
-            $relativePath = (Join-Path (Join-Path $Path $Name) 'action.yml') -replace '\\','/'
+        #Category drives WHERE it lands. 'repoScaffold' = a fixed in-repo dest declared by the manifest
+        #(repo furniture); anything else - pipeline, or an older manifest with no category - vendors into
+        #the consumer-chosen templates dir, as before.
+        $category  = if($mEntry.category){ [string]$mEntry.category } else { 'pipeline' }
+        $kind      = if($mEntry.kind -and $mEntry.kind.$resolvedPlatform){ [string]$mEntry.kind.$resolvedPlatform } else { $null }
+        $isArchive = $assetName -like '*.zip'
+
+        if($category -eq 'repoScaffold'){
+            $destRel = $mEntry.dest.$resolvedPlatform
+            if(-not $destRel){ throw "repoScaffold template '$Name' has no 'dest' for platform '$resolvedPlatform' in the manifest." }
+            $relativePath = ([string]$destRel) -replace '\\','/'
+            $localPath    = Join-Path $projectRoot $relativePath   # a file (workflow/md) or a dir (issue set)
         }else{
-            $localName    = "$Name.yml"                 # drop the platform prefix once vendored
-            $localPath    = Join-Path $templatesDir $localName
-            $relativePath = (Join-Path $Path $localName) -replace '\\','/'
+            #Pipeline: asset extension drives layout - .zip (composite action) -> <name>/action.yml; else <name>.yml.
+            $templatesDir = Join-Path $projectRoot $Path
+            if($isArchive){
+                $localPath    = Join-Path (Join-Path $templatesDir $Name) 'action.yml'
+                $relativePath = (Join-Path (Join-Path $Path $Name) 'action.yml') -replace '\\','/'
+            }else{
+                $localName    = "$Name.yml"                 # drop the platform prefix once vendored
+                $localPath    = Join-Path $templatesDir $localName
+                $relativePath = (Join-Path $Path $localName) -replace '\\','/'
+            }
         }
-        $lockPath     = Join-Path $projectRoot $LockFile
 
-        if(-not $PSCmdlet.ShouldProcess($localPath, "Vendor template '$Name' from $($release.tag_name)")){
+        if(-not $PSCmdlet.ShouldProcess($localPath, "Vendor template '$Name' ($resolvedPlatform) from $($release.tag_name)")){
             return
-        }
-
-        $destDir = Split-Path -Parent $localPath
-        if(-not (Test-Path -LiteralPath $destDir)){
-            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
         }
 
         #Download (and expand, for archives) into a staging area, then lay the files down.
         $staged = Resolve-MOTemplateAsset -Uri $asset.browser_download_url -AssetName $assetName @tokenSplat
         try{
             if($staged.IsArchive){
-                #Copy the whole expanded action dir (action.yml + any sidecars) into <name>/.
+                #A composite action copies into <name>/ (parent of action.yml); a repoScaffold directory set
+                #(tree integrity) copies into the dest directory itself.
+                $destDir = if($staged.IntegrityMode -eq 'tree'){ $localPath } else { Split-Path -Parent $localPath }
+                if(-not (Test-Path -LiteralPath $destDir)){ New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
                 Copy-Item -Path (Join-Path $staged.ContentPath '*') -Destination $destDir -Recurse -Force
             }else{
+                $destDir = Split-Path -Parent $localPath
+                if(-not (Test-Path -LiteralPath $destDir)){ New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
                 Copy-Item -LiteralPath $staged.ContentPath -Destination $localPath -Force
             }
-            $sha = $staged.Sha256
+            $sha       = $staged.Sha256
+            $integrity = $staged.IntegrityMode
         }
         finally{
             if(Test-Path -LiteralPath $staged.StageRoot){ Remove-Item -LiteralPath $staged.StageRoot -Recurse -Force -ErrorAction SilentlyContinue }
         }
         Write-Verbose "Vendored '$Name' -> $relativePath (sha256 $sha)"
 
-        #Record in the lockfile
+        #Record in the lockfile. Seed defaults.platform on first use so later commands inherit it.
         $lock = Read-MOTemplateLock -Path $lockPath
         $lock.source = $Source
+        if(-not $lock.defaults){ $lock.defaults = @{} }
+        if(-not $lock.defaults.platform){ $lock.defaults.platform = $resolvedPlatform }
         $lock.templates[$Name] = @{
-            version  = $release.tag_name
-            platform = $Platform
-            asset    = $assetName
-            path     = $relativePath
-            sha256   = $sha
-            url      = $asset.browser_download_url
+            version   = $release.tag_name
+            platform  = $resolvedPlatform
+            category  = $category
+            kind      = $kind
+            asset     = $assetName
+            path      = $relativePath
+            integrity = $integrity
+            sha256    = $sha
+            url       = $asset.browser_download_url
         }
         Write-MOTemplateLock -Lock $lock -Path $lockPath
 

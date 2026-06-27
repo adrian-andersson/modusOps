@@ -8,7 +8,7 @@
 Versioned, **security-prominent** pipeline automation for **Azure DevOps** and **GitHub Actions**.
 
 Pipelines stay *thin*: they declare *what* to run and *which version* - the real logic lives in
-SemVer'd PowerShell modules and templates, pulled at runtime. Behaviour changes by **promoting a
+version-pinned PowerShell modules and templates, pulled at runtime. Behaviour changes by **promoting a
 version, not by editing YAML**. The build token is bound per-feed so it is *structurally* incapable
 of reaching a public source, which makes the supply chain auditable rather than implicit.
 
@@ -16,8 +16,8 @@ of reaching a public source, which makes the supply chain auditable rather than 
 
 - **Thin operations.** A pipeline orchestrates; it carries no inline REST, parsing, or duplicated
   auth. Those live in versioned modules pulled from a private feed at runtime.
-- **Version-pinned everything.** Modules and templates are SemVer'd. A new behaviour is a new
-  version, promoted deliberately - not an edit to live YAML.
+- **Version-pinned everything.** Modules are SemVer'd; the template library is a rolling-integer (N+)
+  set. A new behaviour is a new version, promoted deliberately - not an edit to live YAML.
 - **Contained credentials.** The build token is stored in a per-run SecretStore vault and bound to
   each internal feed via `CredentialInfo` + `-CredentialProvider None`, so it cannot reach a public
   feed. (See the [credential model](https://adrian-andersson.github.io/modusOps/concepts/).)
@@ -49,15 +49,27 @@ Install-PSResource -Name modusOps
 | `Add-MOAzureDevOpsModusResourceAuthorization` | Authorize a pipeline against a resource. |
 | `Set-MOAzureDevOpsModusRepoPermission` | Grant the build service the repo permissions it needs. |
 
-**Templates** - the npm-style surface over `modusops-templates`:
+**Templates & scaffolding** - the npm-style surface over `modusops-templates`:
 
 | Cmdlet | Does |
 | --- | --- |
-| `Find-MOTemplate` | Discover templates / versions in the library. |
-| `Add-MOTemplate` | Vendor a pinned template into your repo + record it in `.modusops.lock`. |
+| `Set-MOPlatform` / `Get-MOPlatform` | Set / read the default platform (azd\|gh) so you stop re-passing `-Platform`. |
+| `Find-MOTemplate` | Discover templates in the library (scoped to your platform; `-AllPlatforms` to widen). |
+| `Add-MOTemplate` | Vendor one pinned asset to its dest + record it in `.modusops.lock`. |
+| `Find-MOArchetype` | Discover the **sets** (archetypes) — curated bundles or derived selectors. |
+| `Add-MORepoScaffold` | Stamp a whole set in one call — vendor file members and, on azd, run allow-listed provisioning steps; each lock-pinned. |
 | `Update-MOTemplate` | Re-pull at a newer version, rewriting only what changed. |
-| `Test-MOTemplate` | Offline integrity check of vendored files against the lockfile. |
-| `Get-MOTemplate` | List installed templates (reads the lockfile). |
+| `Test-MOTemplate` | Offline integrity check of vendored files against the lockfile (file SHA or tree hash). |
+| `Get-MOTemplate` | List installed templates + their archetype (reads the lockfile). |
+
+> **Platform defaulting.** Pass `-Platform` once (or `Set-MOPlatform gh`) and it's seeded into
+> `.modusops.lock`; every later command resolves it from there (or auto-detects `.github/` vs
+> `azure-pipelines.yml`), so the catalog and vendoring only deal with what's relevant.
+
+**Archetypes** are named bundles in the library — a curated list, or a derived selector over
+`category`/`kind`. A step either *vendors a file* or, on azd, *runs a provisioning cmdlet* (branch
+policy, repo permission) bound from `-With` + context. Provisioning is gated by a fixed **allow-list**,
+so a vendored manifest can never invoke an arbitrary command.
 
 ## Quick start
 
@@ -75,10 +87,15 @@ Install-PSResource -Name modusOps
 > own cadence.
 
 ```powershell
-# In your TEMPLATES repo: vendor a pinned template into ./templates and pin it in .modusops.lock
-Find-MOTemplate
-Add-MOTemplate -Name registerModusOpsFeeds -Platform gh -Version v0.1.1
-Test-MOTemplate
+# In your TEMPLATES repo: set the platform default once, then vendor pinned assets into .modusops.lock
+Set-MOPlatform gh                                 # seeded into .modusops.lock; later commands inherit it
+Find-MOTemplate                                   # browse the library (scoped to gh)
+Add-MOTemplate -Name registerModusOpsFeeds        # one asset (platform inferred, latest pinned explicitly)
+
+# Stamp whole-repo furniture (CI workflows + PR/issue templates) in one call:
+Find-MOArchetype                                  # templateLibrary (curated) · workflowSet (selector)
+Add-MORepoScaffold -Archetype templateLibrary     # vendors every member, lock-pinned under the archetype
+Test-MOTemplate                                   # offline integrity check of everything vendored
 ```
 
 See **[Getting Started](https://adrian-andersson.github.io/modusOps/getting-started.html)** for the

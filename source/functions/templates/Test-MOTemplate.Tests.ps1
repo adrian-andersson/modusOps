@@ -8,7 +8,7 @@ BeforeAll {
         if (-not $sourceMap.ContainsKey($_.Name)) { $sourceMap[$_.Name] = $_.FullName }
     }
 
-    foreach($dep in @('Read-MOTemplateLock.ps1')){
+    foreach($dep in @('Read-MOTemplateLock.ps1', 'Get-MOTreeHash.ps1')){
         if ($sourceMap.ContainsKey($dep)) { . $sourceMap[$dep] }
         else { Write-Warning "Dependency not found under source: $dep" }
     }
@@ -53,6 +53,7 @@ Describe 'Test-MOTemplate' {
             templates       = @{
                 alpha = @{ version = 'v1'; platform = 'azd'; path = 'templates/alpha.yml'; sha256 = $alphaSha }
                 gone  = @{ version = 'v1'; platform = 'azd'; path = 'templates/gone.yml';  sha256 = 'ZZZ' }
+                'azdOps:buildValidation' = @{ kind = 'provision'; cmdlet = 'Add-MOAzureDevOpsModusBuildValidation'; archetype = 'azdOps' }
             }
         } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $lockPath
     }
@@ -76,6 +77,12 @@ Describe 'Test-MOTemplate' {
         $result = @(Test-MOTemplate -Name gone -ProjectPath $tmp -WarningAction SilentlyContinue)
         $result[0].Status | Should -Be 'Missing'
         $result[0].Actual | Should -BeNullOrEmpty
+    }
+
+    It 'skips provision marker entries (no file to hash)' {
+        $result = @(Test-MOTemplate -ProjectPath $tmp -WarningAction SilentlyContinue)
+        ($result | Where-Object { $_.Name -like '*buildValidation*' }) | Should -BeNullOrEmpty
+        ($result | Where-Object { $_.Name -eq 'alpha' }).Status | Should -Be 'OK'
     }
 
     It 'makes no network calls (offline)' {
