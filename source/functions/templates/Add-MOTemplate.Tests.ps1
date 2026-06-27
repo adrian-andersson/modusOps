@@ -114,6 +114,72 @@ Describe 'Add-MOTemplate' {
     }
 }
 
+Describe 'Add-MOTemplate (multiple names in one call)' {
+    BeforeEach {
+        $tmp = Join-Path $testTempBase ([guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+
+        Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
+        Mock Invoke-WebRequest { throw 'No real HTTP in tests' }
+
+        Mock Get-MOTemplateRelease {
+            [pscustomobject]@{
+                tag_name = 'v1'
+                assets   = @(
+                    [pscustomobject]@{ name = 'azd.registerModusOpsFeeds.yml';  browser_download_url = 'https://example/azd.registerModusOpsFeeds.yml' }
+                    [pscustomobject]@{ name = 'azd.installModusOpsModules.yml'; browser_download_url = 'https://example/azd.installModusOpsModules.yml' }
+                    [pscustomobject]@{ name = 'manifest.json';                  browser_download_url = 'https://example/manifest.json' }
+                )
+            }
+        }
+        Mock Get-MOTemplateManifest {
+            @{
+                templates = @{
+                    registerModusOpsFeeds  = @{ platforms = @('azd'); assets = @{ azd = 'azd.registerModusOpsFeeds.yml' } }
+                    installModusOpsModules = @{ platforms = @('azd'); assets = @{ azd = 'azd.installModusOpsModules.yml' } }
+                }
+            } | ConvertTo-Json -Depth 6 | ConvertFrom-Json
+        }
+        Mock Save-GitHubReleaseAsset { Set-Content -LiteralPath $Path -Value "steps:`n  - script: echo $([guid]::NewGuid())" -NoNewline }
+    }
+    AfterEach {
+        if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'vendors every requested template in one call' {
+        Add-MOTemplate -Name registerModusOpsFeeds,installModusOpsModules -Platform azd -ProjectPath $tmp
+        (Test-Path (Join-Path $tmp 'templates/registerModusOpsFeeds.yml'))  | Should -BeTrue
+        (Test-Path (Join-Path $tmp 'templates/installModusOpsModules.yml')) | Should -BeTrue
+    }
+
+    It 'records one lock entry per name' {
+        Add-MOTemplate -Name registerModusOpsFeeds,installModusOpsModules -Platform azd -ProjectPath $tmp
+        $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
+        $lock.templates.registerModusOpsFeeds.version  | Should -Be 'v1'
+        $lock.templates.installModusOpsModules.version | Should -Be 'v1'
+    }
+
+    It 'returns one result object per name' {
+        $result = @(Add-MOTemplate -Name registerModusOpsFeeds,installModusOpsModules -Platform azd -ProjectPath $tmp)
+        $result.Count | Should -Be 2
+        ($result.name | Sort-Object) | Should -Be @('installModusOpsModules','registerModusOpsFeeds')
+    }
+
+    It 'resolves the release + manifest once for the whole batch' {
+        Add-MOTemplate -Name registerModusOpsFeeds,installModusOpsModules -Platform azd -ProjectPath $tmp
+        Should -Invoke Get-MOTemplateRelease  -Times 1
+        Should -Invoke Get-MOTemplateManifest -Times 1
+    }
+
+    It 'is atomic - a bad name throws before anything is written or downloaded' {
+        { Add-MOTemplate -Name registerModusOpsFeeds,ghostTemplate -Platform azd -ProjectPath $tmp } |
+            Should -Throw '*not in the manifest*'
+        Should -Invoke Save-GitHubReleaseAsset -Times 0
+        (Test-Path (Join-Path $tmp 'templates/registerModusOpsFeeds.yml')) | Should -BeFalse
+        (Test-Path (Join-Path $tmp '.modusops.lock')) | Should -BeFalse
+    }
+}
+
 Describe 'Add-MOTemplate (gh composite action)' {
     BeforeEach {
         $tmp = Join-Path $testTempBase ([guid]::NewGuid().ToString('N'))
