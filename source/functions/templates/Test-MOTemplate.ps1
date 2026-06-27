@@ -44,6 +44,8 @@ function Test-MOTemplate
         foreach($key in ($lock.templates.Keys | Sort-Object)){
             if($key -notlike $Name){ continue }
             $entry = $lock.templates[$key]
+            #Provision markers are REST actions, not vendored files - there's nothing on disk to hash, so skip.
+            if($entry.kind -eq 'provision'){ continue }
             $localPath = Join-Path $projectRoot $entry.path
 
             #Recompute the anchor the same way it was pinned: tree hash for a directory set, else file SHA256.

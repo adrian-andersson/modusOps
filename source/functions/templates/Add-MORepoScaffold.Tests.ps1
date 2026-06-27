@@ -16,6 +16,8 @@ BeforeAll {
         'Resolve-MOArchetype.ps1'
         'Resolve-MOPlatform.ps1'
         'Resolve-MOTemplateAsset.ps1'
+        'Resolve-MOProvisionArgs.ps1'
+        'Get-MOProvisionAllowList.ps1'
         'Get-MOTreeHash.ps1'
         'Get-MOTemplateRelease.ps1'
         'Get-MOTemplateManifest.ps1'
@@ -30,6 +32,11 @@ BeforeAll {
     $fileName     = $PSCommandPath.Replace('.Tests.ps1', '.ps1')
     $functionName = 'Add-MORepoScaffold'
     . $fileName
+
+    # Stub an allow-listed provisioning cmdlet so Get-Command resolves it and Mock can capture the call.
+    function Add-MOAzureDevOpsModusBuildValidation {
+        param($OrganizationUri, $ProjectName, $RepositoryName, $BuildDefinitionId, $Token)
+    }
 
     $testTempBase = Join-Path $currentPath ".pestertmp_$functionName"
     if (Test-Path $testTempBase) { Remove-Item $testTempBase -Recurse -Force -ErrorAction SilentlyContinue }
@@ -133,5 +140,86 @@ Describe 'Add-MORepoScaffold' {
 
     It 'throws for an unknown archetype' {
         { Add-MORepoScaffold -Archetype ghost -Platform gh -ProjectPath $tmp } | Should -Throw '*not in the manifest*'
+    }
+}
+
+Describe 'Add-MORepoScaffold (provision steps)' {
+    BeforeEach {
+        $tmp = Join-Path $testTempBase ([guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+
+        Mock Invoke-RestMethod { throw 'No real HTTP in tests' }
+        Mock Invoke-WebRequest { throw 'No real HTTP in tests' }
+        Mock Add-MOAzureDevOpsModusBuildValidation {}   # capture provisioning calls
+
+        Mock Get-MOTemplateRelease {
+            [pscustomobject]@{
+                tag_name = 'v1'
+                assets   = @(
+                    [pscustomobject]@{ name = 'azd.registerModusOpsFeeds.yml'; browser_download_url = 'https://example/azd.registerModusOpsFeeds.yml' }
+                    [pscustomobject]@{ name = 'manifest.json'; browser_download_url = 'https://example/manifest.json' }
+                )
+            }
+        }
+        Mock Get-MOTemplateManifest {
+            @{
+                templates = @{
+                    registerModusOpsFeeds = @{
+                        category = 'pipeline'; kind = @{ azd = 'stepTemplate' }; platforms = @('azd')
+                        assets = @{ azd = 'azd.registerModusOpsFeeds.yml' }
+                    }
+                }
+                sets = @{
+                    azdOps = @{ type = 'archetype'; platforms = @('azd'); steps = @(
+                        @{ type = 'file'; template = 'registerModusOpsFeeds' }
+                        @{ type = 'provision'; id = 'buildValidation'; cmdlet = 'Add-MOAzureDevOpsModusBuildValidation';
+                           with = @{ RepositoryName = '{repo}'; BuildDefinitionId = '{buildId}' } }
+                    ) }
+                    badProvision = @{ type = 'archetype'; platforms = @('azd'); steps = @(
+                        @{ type = 'provision'; cmdlet = 'Remove-Item'; with = @{} }
+                    ) }
+                }
+            } | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        }
+        Mock Save-GitHubReleaseAsset { Set-Content -LiteralPath $Path -Value "steps:`n  - script: echo hi" -NoNewline }
+    }
+    AfterEach {
+        if ($tmp -and (Test-Path $tmp)) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+
+    It 'vendors the file member and invokes the provision cmdlet with bound args' {
+        Add-MORepoScaffold -Archetype azdOps -Platform azd -OrganizationUri 'https://dev.azure.com/x' `
+            -ProjectName 'p' -With @{ repo = 'myRepo'; buildId = 42 } -ProjectPath $tmp
+        (Test-Path (Join-Path $tmp 'templates/registerModusOpsFeeds.yml')) | Should -BeTrue
+        Should -Invoke Add-MOAzureDevOpsModusBuildValidation -Times 1 -ParameterFilter {
+            $RepositoryName -eq 'myRepo' -and $BuildDefinitionId -eq 42 -and $OrganizationUri -eq 'https://dev.azure.com/x'
+        }
+    }
+
+    It 'writes a provision marker in the lock (cmdlet + archetype, no sha)' {
+        Add-MORepoScaffold -Archetype azdOps -Platform azd -OrganizationUri 'https://x' `
+            -With @{ repo = 'r'; buildId = 1 } -ProjectPath $tmp
+        $lock = Get-Content (Join-Path $tmp '.modusops.lock') -Raw | ConvertFrom-Json
+        $entry = $lock.templates.'azdOps:buildValidation'
+        $entry.kind      | Should -Be 'provision'
+        $entry.cmdlet    | Should -Be 'Add-MOAzureDevOpsModusBuildValidation'
+        $entry.archetype | Should -Be 'azdOps'
+        $entry.sha256    | Should -BeNullOrEmpty
+    }
+
+    It 'requires -OrganizationUri when the archetype has provision steps' {
+        { Add-MORepoScaffold -Archetype azdOps -Platform azd -ProjectPath $tmp } | Should -Throw '*OrganizationUri*'
+    }
+
+    It 'rejects a provision cmdlet not in the allow-list' {
+        { Add-MORepoScaffold -Archetype badProvision -Platform azd -OrganizationUri 'https://x' -ProjectPath $tmp } |
+            Should -Throw '*allow-list*'
+    }
+
+    It 'honours -WhatIf - invokes nothing and writes no lock' {
+        Add-MORepoScaffold -Archetype azdOps -Platform azd -OrganizationUri 'https://x' `
+            -With @{ repo = 'r'; buildId = 1 } -ProjectPath $tmp -WhatIf
+        Should -Invoke Add-MOAzureDevOpsModusBuildValidation -Times 0
+        (Test-Path (Join-Path $tmp '.modusops.lock')) | Should -BeFalse
     }
 }

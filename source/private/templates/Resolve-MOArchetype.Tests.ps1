@@ -29,10 +29,12 @@ BeforeAll {
             withExclude   = @{ type = 'selector'; platforms = @('gh'); select = @{ category = 'repoScaffold'; kind = 'workflow' }; exclude = @('release') }
             withProvision = @{ type = 'archetype'; platforms = @('gh'); steps = @(
                 @{ type = 'file'; template = 'prValidation' }
-                @{ type = 'provision'; cmdlet = 'Add-MOAzureDevOpsModusBuildValidation' }
+                @{ type = 'provision'; id = 'buildValidation'; cmdlet = 'Add-MOAzureDevOpsModusBuildValidation'; with = @{ RepositoryName = '{repo}' } }
             ) }
-            badRef  = @{ type = 'archetype'; platforms = @('gh'); steps = @(@{ type = 'file'; template = 'ghost' }) }
-            azdOnly = @{ type = 'archetype'; platforms = @('azd'); steps = @(@{ type = 'file'; template = 'registerModusOpsFeeds' }) }
+            badRef          = @{ type = 'archetype'; platforms = @('gh'); steps = @(@{ type = 'file'; template = 'ghost' }) }
+            badStepType     = @{ type = 'archetype'; platforms = @('gh'); steps = @(@{ type = 'mystery'; template = 'prValidation' }) }
+            noCmdlet        = @{ type = 'archetype'; platforms = @('gh'); steps = @(@{ type = 'provision' }) }
+            azdOnly         = @{ type = 'archetype'; platforms = @('azd'); steps = @(@{ type = 'file'; template = 'registerModusOpsFeeds' }) }
         }
     } | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 }
@@ -67,10 +69,28 @@ Describe 'Resolve-MOArchetype' {
         @($m.Template) | Should -Be @('prValidation')
     }
 
-    It 'skips provision steps (deferred) with a warning' {
-        $m = @(Resolve-MOArchetype -Manifest $manifest -Archetype withProvision -Platform gh -WarningVariable warn -WarningAction SilentlyContinue)
+    It 'includes provision steps as provision members (with cmdlet + with-map)' {
+        $m = @(Resolve-MOArchetype -Manifest $manifest -Archetype withProvision -Platform gh)
+        $m.Count | Should -Be 2
+        $m[0].StepType | Should -Be 'file'
+        $m[0].Template | Should -Be 'prValidation'
+        $m[1].StepType | Should -Be 'provision'
+        $m[1].Name     | Should -Be 'buildValidation'
+        $m[1].Cmdlet   | Should -Be 'Add-MOAzureDevOpsModusBuildValidation'
+        $m[1].With.RepositoryName | Should -Be '{repo}'
+    }
+
+    It 'drops provision steps when -Include narrows by kind' {
+        $m = @(Resolve-MOArchetype -Manifest $manifest -Archetype withProvision -Platform gh -Include workflow)
         @($m.Template) | Should -Be @('prValidation')
-        $warn.Count | Should -BeGreaterThan 0
+    }
+
+    It 'throws on an unknown step type' {
+        { Resolve-MOArchetype -Manifest $manifest -Archetype badStepType -Platform gh } | Should -Throw '*unknown step type*'
+    }
+
+    It 'throws on a provision step with no cmdlet' {
+        { Resolve-MOArchetype -Manifest $manifest -Archetype noCmdlet -Platform gh } | Should -Throw '*no cmdlet*'
     }
 
     It 'throws on a curated step referencing an unknown template' {

@@ -9,9 +9,9 @@ function Resolve-MOArchetype
             set name and the target platform, returns one descriptor per member (Template, Category, Kind) in
             apply order. Two set shapes:
 
-              type 'archetype' - a curated, ordered list of steps. 'file' steps name a member template;
-                                 'provision' steps (call a scaffold cmdlet) are recognised but deferred to a
-                                 later phase, so they're skipped here with a warning.
+              type 'archetype' - a curated, ordered list of steps. 'file' steps name a member template (vendored);
+                                 'provision' steps name a scaffold cmdlet + a with-map (a REST action, e.g.
+                                 a branch policy). Both are returned with a StepType so the caller dispatches.
               type 'selector'  - a derived query: every template whose category (and kind, for the platform)
                                  match `select`, minus anything in `exclude`, sorted by name. Evaluated against
                                  THIS manifest version - immutable + lock-pinned, so it stays deterministic.
@@ -61,17 +61,27 @@ function Resolve-MOArchetype
                 if($sel.kind -and $kind -ne [string]$sel.kind){ continue }
                 if(@($t.platforms) -notcontains $Platform){ continue }
                 if($set.exclude -and (@($set.exclude) -contains $prop.Name)){ continue }
-                $members.Add([pscustomobject]@{ Template = $prop.Name; Category = $cat; Kind = $kind })
+                $members.Add([pscustomobject]@{ StepType = 'file'; Template = $prop.Name; Category = $cat; Kind = $kind })
             }
             $ordered = @($members | Sort-Object Template)
         }else{
             $ordered = [System.Collections.Generic.List[object]]::new()
             foreach($step in @($set.steps)){
                 $stype = if($step.type){ [string]$step.type } else { 'file' }
-                if($stype -ne 'file'){
-                    Write-Warning "Archetype '$Archetype': skipping '$stype' step (provision steps arrive in a later phase)."
+
+                if($stype -eq 'provision'){
+                    if([string]::IsNullOrWhiteSpace($step.cmdlet)){ throw "Archetype '$Archetype' has a provision step with no cmdlet." }
+                    $withMap = @{}
+                    if($step.with){ foreach($p in $step.with.PSObject.Properties){ $withMap[$p.Name] = $p.Value } }
+                    $id = if($step.id){ [string]$step.id } else { [string]$step.cmdlet }
+                    $ordered.Add([pscustomobject]@{
+                        StepType = 'provision'; Name = $id; Cmdlet = [string]$step.cmdlet; With = $withMap
+                        Template = $null; Category = $null; Kind = $null
+                    })
                     continue
                 }
+
+                if($stype -ne 'file'){ throw "Archetype '$Archetype' has an unknown step type '$stype'." }
                 $name = [string]$step.template
                 $tProp = $Manifest.templates.PSObject.Properties | Where-Object { $_.Name -eq $name } | Select-Object -First 1
                 if(-not $tProp){ throw "Archetype '$Archetype' references unknown template '$name'." }
@@ -82,13 +92,14 @@ function Resolve-MOArchetype
                 }
                 $cat = if($t.category){ [string]$t.category } else { 'pipeline' }
                 $kind = if($t.kind){ [string]$t.kind.$Platform } else { $null }
-                $ordered.Add([pscustomobject]@{ Template = $name; Category = $cat; Kind = $kind })
+                $ordered.Add([pscustomobject]@{ StepType = 'file'; Template = $name; Category = $cat; Kind = $kind })
             }
             $ordered = @($ordered)
         }
 
         if($Include){
-            $ordered = @($ordered | Where-Object { $Include -contains $_.Kind })
+            #Narrow to file members of the requested kind(s); provision steps are dropped by a kind filter.
+            $ordered = @($ordered | Where-Object { $_.StepType -eq 'file' -and $Include -contains $_.Kind })
         }
         return $ordered
     }
