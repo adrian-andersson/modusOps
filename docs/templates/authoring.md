@@ -41,14 +41,18 @@ any step runs. Tokens must arrive via an `input` the caller passes `secrets.*` i
 
 ## Release
 
-On merge, a SemVer tag is cut and the **full template set is attached** to the release
-(`azd.<name>.yml` single files, `gh.<name>.zip` archives, plus `manifest.json` and a `checksums.txt`).
-Release notes list only what actually changed since the previous tag, so an unchanged template never
-looks modified even though the library version advanced. A separate single-integer `vN` tag is also
-cut so GitHub consumers can pin composite actions by an immutable ref.
+On merge, the next **rolling-integer** tag (`v1`, `v2`, `v3`, ...) is cut and the **full asset set is
+attached** to the release (`azd.<name>.yml` and `gh.<name>.zip` for pipeline templates, the
+`repoScaffold` workflow/markdown assets, plus `manifest.json` and a `checksums.txt`). Release notes
+list only what actually changed since the previous tag, so an unchanged template never looks modified
+even though the library version advanced. The same `vN` tag is the immutable ref GitHub consumers pin
+(`...@vN`) - one tag scheme, not a separate SemVer line. (modusOps *modules* stay SemVer'd; the
+*template library* is a curated set, so one monotonic coordinate is simpler.)
 
 ## The manifest is authoritative
 
 The tooling resolves a template name to its asset through `manifest.json`, never by parsing filenames.
 Each entry lists the template's platforms and per-platform asset names - which is how one name can map
-to both an `azd.<name>.yml` and a `gh.<name>.zip`.
+to both an `azd.<name>.yml` and a `gh.<name>.zip` - plus a `category` (`pipeline` or `repoScaffold`),
+the per-platform `kind`, and (for `repoScaffold`) a fixed `dest`. A top-level `sets` block declares the
+archetypes that [`Add-MORepoScaffold`](./repo-scaffolding.md) applies.

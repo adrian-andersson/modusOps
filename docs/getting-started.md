@@ -67,15 +67,25 @@ Templates are the versioned steps your pipeline runs. Run these in your **templa
 and pins each in `.modusops.lock`. **No PAT required.**
 
 ```powershell
-# the credential + install pair, plus one notification template
-Add-MOTemplate -Name registerModusOpsFeeds     -Platform gh -Version v0.1.1
-Add-MOTemplate -Name installModusOpsModules    -Platform gh -Version v0.1.1
-Add-MOTemplate -Name sendDiscordChannelMessage -Platform gh -Version v0.1.1   # or sendTeamsChannelMessage
+Set-MOPlatform gh                              # set the default once; seeded into .modusops.lock
+
+# the credential + install pair, plus one notification template (platform now inferred)
+Add-MOTemplate -Name registerModusOpsFeeds     -Version v1
+Add-MOTemplate -Name installModusOpsModules    -Version v1
+Add-MOTemplate -Name sendDiscordChannelMessage -Version v1   # or sendTeamsChannelMessage
 Test-MOTemplate
 ```
 
-(Use `-Platform azd` for Azure DevOps.) The starter templates are a **convenience, not a requirement** -
-author your own whenever the provided ones don't fit. See [Templates](./templates/) and
+Want the repo's CI furniture too - PR-validation + release workflows, PR/issue templates? Stamp the
+whole **set** in one call:
+
+```powershell
+Add-MORepoScaffold -Archetype templateLibrary  # vendors every member, lock-pinned
+```
+
+(`Set-MOPlatform azd` for Azure DevOps; library versions are rolling integers, `vN`.) The starter
+templates are a **convenience, not a requirement** - author your own whenever the provided ones don't
+fit. See [Templates](./templates/), [Repo scaffolding](./templates/repo-scaffolding.md), and
 [Authoring templates](./templates/authoring.md).
 
 ---

@@ -18,6 +18,23 @@ package it differently, so the asset shape differs.
 | Integrity anchor | file SHA256 | SHA256 of the inner `action.yml` |
 | Vendored as | `<name>.yml` | `<name>/action.yml` |
 
+## Asset shapes and integrity anchors
+
+That table is the `pipeline` case. More broadly, the integrity anchor follows the asset *shape*, not
+just the platform:
+
+| Shape | Examples | Anchor |
+| --- | --- | --- |
+| single file | azd template, gh workflow, PR template | file SHA256 |
+| composite action (dir with `action.yml`) | gh register / install / notify | the inner `action.yml` SHA256 |
+| directory set (multi-file dir) | issue-template set | canonical **tree hash** (sorted relative paths + per-file SHA256, hashed) |
+
+A single-file composite action stays on the plain `action.yml` SHA256 (a simple lock-vs-file check);
+only a genuinely multi-file directory needs the tree hash, since a zip is not byte-reproducible.
+
+GitHub **`repoScaffold`** assets - workflows and PR/issue templates - vendor to a **fixed dest** under
+`.github/` rather than a chosen templates dir. See [Repo scaffolding (archetypes)](./repo-scaffolding.md).
+
 ## Why GitHub templates are directories
 
 A GitHub composite action is not a loose file - it is a directory whose entry file must be named

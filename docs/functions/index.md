@@ -23,10 +23,14 @@ Reference documentation for every exported `MO*` cmdlet.
 - Add-MOAzureDevOpsModusResourceAuthorization
 - Set-MOAzureDevOpsModusRepoPermission
 
-**Templates**
+**Templates & scaffolding**
 
+- Set-MOPlatform
+- Get-MOPlatform
 - Find-MOTemplate
 - Add-MOTemplate
+- Find-MOArchetype
+- Add-MORepoScaffold
 - Update-MOTemplate
 - Test-MOTemplate
 - Get-MOTemplate

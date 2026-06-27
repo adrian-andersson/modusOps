@@ -36,21 +36,30 @@ That hash - not the release tag - is the integrity anchor, because release asset
 {
   "lockfileVersion": 1,
   "source": "https://github.com/adrian-andersson/modusops-templates",
+  "defaults": { "platform": "gh" },          // set once; commands stop re-taking -Platform
   "templates": {
-    "registerModusOpsFeeds": {
-      "version": "v0.1.1",
-      "platform": "gh",
+    "registerModusOpsFeeds": {               // a pipeline building block
+      "version": "v1", "platform": "gh", "category": "pipeline", "kind": "compositeAction",
       "asset": "gh.registerModusOpsFeeds.zip",
       "path": "templates/registerModusOpsFeeds/action.yml",
-      "sha256": "....",
+      "integrity": "file", "sha256": "....",
       "url": "https://github.com/.../gh.registerModusOpsFeeds.zip"
+    },
+    "prValidation": {                         // repo furniture, vendored to a fixed dest
+      "version": "v1", "platform": "gh", "category": "repoScaffold", "kind": "workflow",
+      "asset": "gh.workflow.prValidation.yml",
+      "path": ".github/workflows/prValidation.yml",
+      "integrity": "file", "sha256": "....",
+      "archetype": "templateLibrary", "archetypeVersion": "v1"
     }
   }
 }
 ```
 
-`Test-MOTemplate` recomputes each vendored file's hash and compares it to the lock - entirely offline,
-so it is a cheap CI gate.
+`integrity` says how the anchor is recomputed (`file` SHA256, or `tree` for a multi-file directory set);
+`Test-MOTemplate` recomputes each vendored file's hash that way and compares it to the lock - entirely
+offline, so it is a cheap CI gate. (Versions are rolling integers, `vN` - see
+[Authoring templates](./authoring.md#release).)
 
 ## The verbs
 
@@ -61,6 +70,9 @@ so it is a cheap CI gate.
 | `Update-MOTemplate` | Re-pull at a newer version, rewriting only files whose bytes changed. |
 | `Test-MOTemplate` | Offline integrity check against the lockfile. |
 | `Get-MOTemplate` | List installed templates (reads the lockfile). |
+
+To set a default platform once (`Set-MOPlatform`), or stamp a whole **set** of furniture in one call
+(`Find-MOArchetype` / `Add-MORepoScaffold`), see [Repo scaffolding (archetypes)](./repo-scaffolding.md).
 
 ## Configurable source
 
