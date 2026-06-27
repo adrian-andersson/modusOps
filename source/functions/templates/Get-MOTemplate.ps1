@@ -40,14 +40,15 @@ function Get-MOTemplate
             if($key -notlike $Name){ continue }
             $entry = $lock.templates[$key]
             [pscustomobject]@{
-                Name     = $key
-                Version  = $entry.version
-                Platform = $entry.platform
-                Category = if($entry.category){ $entry.category } else { 'pipeline' }
-                Kind     = $entry.kind
-                Path     = $entry.path
-                Sha256   = $entry.sha256
-                Source   = $lock.source
+                Name      = $key
+                Version   = $entry.version
+                Platform  = $entry.platform
+                Category  = if($entry.category){ $entry.category } else { 'pipeline' }
+                Kind      = $entry.kind
+                Archetype = $entry.archetype
+                Path      = $entry.path
+                Sha256    = $entry.sha256
+                Source    = $lock.source
             }
         }
     }
