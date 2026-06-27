@@ -57,6 +57,45 @@ Each vendored member is pinned in the lockfile exactly as `Add-MOTemplate` would
 + `archetypeVersion` tag so `Test`/`Update` can reason about the set as a whole. Re-running at a newer
 `-Version` re-applies the set (overwriting changed members) - that is also the update path.
 
+## End-to-end: standing up a new repo (tested flow)
+
+The ordering below is deliberate: the CI furniture goes onto `main` **first**, so that the *next* PR is
+actually gated by PR-validation and merging it triggers the release workflow. Doing it the other way
+round means the automation isn't on the default branch yet and the first PR sails through ungated.
+
+1. **Create the repo with a README.** Initialising with a README gives you a real `main` branch up
+   front and avoids the empty-repo / default-branch oddities you hit pushing into a bare repo.
+2. **Clone it, then stamp the library furniture:**
+
+   ```powershell
+   Set-MOPlatform gh
+   Add-MORepoScaffold -Archetype templateLibrary   # PR-validation + release workflows, PR/issue templates
+   ```
+
+3. **Commit and push to `main`.** Now the PR-gate and release workflows live on the default branch.
+4. **Create a branch** for the actual change.
+5. **Vendor the load-bearing pipeline pair on the branch:**
+
+   ```powershell
+   Add-MORepoScaffold -Archetype pipelineCore      # registerModusOpsFeeds + installModusOpsModules
+   ```
+
+6. **Add a notification template** if you want run feedback - the Discord one is the simplest to wire
+   (just a channel webhook):
+
+   ```powershell
+   Add-MOTemplate -Name sendDiscordChannelMessage
+   # or fold it into one call: Add-MOTemplate -Name registerModusOpsFeeds,installModusOpsModules,sendDiscordChannelMessage
+   ```
+
+7. **Open a PR.** PR-validation runs as the gate; merging it triggers the release workflow, which cuts
+   the next rolling-integer tag (`vN`). Review the vendored (privileged) assets in that PR diff - this is
+   where the human check happens.
+8. **Authorise the consumer.** Make sure the repo is configured to be read by the pipeline/consumer repo
+   that references it: on GitHub, **Settings -> Actions -> General -> Access** (allow the consumer), which
+   is what lets a cross-repo `OWNER/repo/...@vN` ref resolve; on Azure DevOps the analog is resource
+   authorization on the pipeline.
+
 ## Provision steps - files *and* REST (Azure DevOps)
 
 On GitHub, repo governance *is* files in `.github/`. On Azure DevOps it is REST calls (branch policy,

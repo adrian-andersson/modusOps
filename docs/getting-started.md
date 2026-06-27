@@ -76,6 +76,13 @@ Add-MOTemplate -Name sendDiscordChannelMessage -Version v1   # or sendTeamsChann
 Test-MOTemplate
 ```
 
+The register + install pair is the load-bearing spine, so there's a one-call shortcut for just those
+two — handy when you only want to stand them up and start testing:
+
+```powershell
+Add-MORepoScaffold -Archetype pipelineCore     # = the two Add-MOTemplate calls above, lock-pinned
+```
+
 Want the repo's CI furniture too - PR-validation + release workflows, PR/issue templates? Stamp the
 whole **set** in one call:
 

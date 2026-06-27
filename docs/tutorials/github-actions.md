@@ -53,13 +53,15 @@ vendor-at-fetch + lockfile + drift machinery, one verb:
 
 ```powershell
 Find-MOArchetype                                # list the sets + member counts
-Add-MORepoScaffold -Archetype templateLibrary   # vendor every member, lock-pinned under the archetype
+Add-MORepoScaffold -Archetype pipelineCore      # just the register + install pair — quickest start
 ```
 
-The shipped `templateLibrary` archetype furnishes a **templates-library repo** (PR-validation +
-rolling-integer release workflows, PR/issue templates). For a plain *operation* repo you typically just
-vendor the pipeline composite actions above and write your own workflow; when you have a repeatable repo
-shape of your own, author an archetype for it. On Azure DevOps an archetype step can also run an
+`pipelineCore` is the lightest archetype: it vendors only the two load-bearing pipeline pieces
+(`registerModusOpsFeeds` + `installModusOpsModules`), no repo furniture and no provisioning, so it's
+the fastest way to stand up the credential/install spine and start testing. It's the one-call
+equivalent of the two `Add-MOTemplate` calls above. (The heavier `templateLibrary` archetype furnishes a
+whole **templates-library repo** — PR-validation + release workflows, PR/issue templates — which you
+likely don't want in a plain operation repo.) On Azure DevOps an archetype step can also run an
 allow-listed provisioning cmdlet (branch policy, repo permissions) — see
 [Repo scaffolding (archetypes)](../templates/repo-scaffolding.md) for the full model and guardrails.
 
