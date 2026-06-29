@@ -122,6 +122,14 @@ Archetype 'azdOpsRepo' (azd) -> 4 steps
 This unifies the template library and the existing `*-MOAzureDevOpsModus*` scaffold cmdlets under one
 verb: an archetype is "a list of steps, each *vendor a file* or *call a provisioning cmdlet*."
 
+Azure DevOps also has a templates-library archetype - the azd analog of the GitHub `templateLibrary`.
+**`azdTemplateLibrary`** vendors the azd CI furniture (the template-linter PR-validation pipeline + the
+rolling-integer tag pipeline, both `pipeline`-kind) and wires a branch-policy build validation as a
+`provision` step; **`azdWorkflowSet`** is the azd selector for all `repoScaffold` `pipeline` furniture
+(the `kind: pipeline` analog of gh's `workflowSet`). On azd the "release" is **tag-only** - there are no
+downloadable release assets, so the rolling-integer tag is the pin consumers reference via a
+`repository:` resource.
+
 ### Guardrails
 
 - **Allow-list.** A `provision` step may name only a fixed set of modusOps `*-MOAzureDevOpsModus*`

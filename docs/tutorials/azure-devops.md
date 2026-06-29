@@ -101,3 +101,62 @@ portal:
 
 From here, a run uses the [credential model](../concepts/credential-model.md) to install version-pinned
 modules with a contained token.
+
+## A worked example: a SharePoint data round-trip
+
+Beyond the two load-bearing templates, the library has step templates for connecting to Microsoft
+Graph and moving SharePoint files - enough to build a real pipeline. Vendor them alongside the others:
+
+```powershell
+Add-MOTemplate -Name connectMicrosoftGraph -Platform azd -Path ./staging/templates
+Add-MOTemplate -Name getSharePointFile     -Platform azd -Path ./staging/templates
+Add-MOTemplate -Name setSharePointFile     -Platform azd -Path ./staging/templates
+```
+
+A thin operation that downloads a workbook, runs a module against it, and writes it back -
+`example.yml` in your operations repo:
+
+```yaml
+trigger: none
+pool: { vmImage: 'ubuntu-latest' }
+variables:
+  - group: modusOps          # supplies clientId, tenantId, and the secret variable 'clientSecret'
+jobs:
+  - job: run
+    variables:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    steps:
+      - template: templates/registerModusOpsFeeds.yml
+        parameters:
+          feeds: [ { name: 'modusops' } ]
+      - template: templates/installModusOpsModules.yml
+        parameters:
+          modules:                              # public modules resolve from MAR (or an allowed PSGallery)
+            - { name: 'Microsoft.Graph.Authentication', repository: 'MAR' }
+            - { name: 'YourBusinessModule', repository: 'modusops', version: '1.0.0' }
+      - template: templates/connectMicrosoftGraph.yml
+        parameters:
+          clientId: $(clientId)
+          tenantId: $(tenantId)               # clientSecretVariable defaults to 'clientSecret'
+      - template: templates/getSharePointFile.yml
+        parameters:
+          sharePointSite: 'MySite'
+          sharePointFile: 'Reports/workbook.xlsx'
+          localFile: '$(Pipeline.Workspace)/workbook.xlsx'
+      - pwsh: |
+          Import-Module YourBusinessModule
+          # ... transform $(Pipeline.Workspace)/workbook.xlsx ...
+        displayName: 'Run business logic'
+      - template: templates/setSharePointFile.yml
+        parameters:
+          sharePointSite: 'MySite'
+          sharePointFile: 'Reports/workbook.xlsx'
+          localFile: '$(Pipeline.Workspace)/workbook.xlsx'
+```
+
+> **Connect once per job.** `connectMicrosoftGraph` establishes the Graph connection; the
+> `get`/`setSharePointFile` steps carry **no credentials** and inherit it (they fail with a directive
+> error if no connection is found). The connection persists across **steps within a job** - the agent is
+> shared - but **not across jobs**, which is the same boundary the register/install vault relies on. So
+> keep connect + the SharePoint steps in one job; a separate notification job is cleanly isolated and
+> would re-connect if it needed Graph.
