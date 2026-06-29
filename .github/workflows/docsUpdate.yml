@@ -198,6 +198,7 @@ jobs:
         run: |
           $VerbosePreference = 'Continue'
           $moduleName = $env:MODULE_NAME
+          Import-Module $moduleName
           write-verbose "Generating docs for $moduleName"
           Write-MFModuleDocs -ModuleName $moduleName -ModulePath ./docs-branch -StampAllDocs
 
