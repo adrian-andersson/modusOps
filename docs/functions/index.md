@@ -3,34 +3,24 @@ layout: default
 title: Functions
 has_children: true
 permalink: /functions/
-nav_order: 6
 ---
 
 # Functions
 
-Reference documentation for every exported `MO*` cmdlet.
+Reference documentation for all exported modusOps functions.
 
-> This section is **generated from the module's comment-based help** by ModuleForge's
-> `Write-MFModuleDocs` and rebuilt on each release - do not hand-edit the function pages. The list
-> below is a placeholder until the generator runs for the first time.
-
-**Scaffold (Azure DevOps)**
-
-- New-MOAzureDevOpsModusEnvironment
-- New-MOAzureDevOpsModusPipeline
-- Push-MOAzureDevOpsModusContent
-- Add-MOAzureDevOpsModusBuildValidation
-- Add-MOAzureDevOpsModusResourceAuthorization
-- Set-MOAzureDevOpsModusRepoPermission
-
-**Templates & scaffolding**
-
-- Set-MOPlatform
-- Get-MOPlatform
-- Find-MOTemplate
-- Add-MOTemplate
-- Find-MOArchetype
-- Add-MORepoScaffold
-- Update-MOTemplate
-- Test-MOTemplate
-- Get-MOTemplate
+- [Add-MOAzureDevOpsModusBuildValidation](./Add-MOAzureDevOpsModusBuildValidation.md)
+- [Add-MOAzureDevOpsModusResourceAuthorization](./Add-MOAzureDevOpsModusResourceAuthorization.md)
+- [Add-MORepoScaffold](./Add-MORepoScaffold.md)
+- [Add-MOTemplate](./Add-MOTemplate.md)
+- [Find-MOArchetype](./Find-MOArchetype.md)
+- [Find-MOTemplate](./Find-MOTemplate.md)
+- [Get-MOPlatform](./Get-MOPlatform.md)
+- [Get-MOTemplate](./Get-MOTemplate.md)
+- [New-MOAzureDevOpsModusEnvironment](./New-MOAzureDevOpsModusEnvironment.md)
+- [New-MOAzureDevOpsModusPipeline](./New-MOAzureDevOpsModusPipeline.md)
+- [Push-MOAzureDevOpsModusContent](./Push-MOAzureDevOpsModusContent.md)
+- [Set-MOAzureDevOpsModusRepoPermission](./Set-MOAzureDevOpsModusRepoPermission.md)
+- [Set-MOPlatform](./Set-MOPlatform.md)
+- [Test-MOTemplate](./Test-MOTemplate.md)
+- [Update-MOTemplate](./Update-MOTemplate.md)
